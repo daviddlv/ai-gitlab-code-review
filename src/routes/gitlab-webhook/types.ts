@@ -1,5 +1,6 @@
 import type { WebhookPushEventSchema, WebhookMergeRequestEventSchema } from '@gitbeaker/rest'
 import { BaseError } from '../../config/errors.js'
+import type { MessageParam } from '@anthropic-ai/sdk/resources/messages.js'
 import type { ChatCompletionMessageParam } from 'openai/resources/index.mjs'
 
 export interface GitLabFetchHeaders {
@@ -10,11 +11,24 @@ export type CommentPayload = { body: string } | { note: string }
 
 // #region Webhook Handler
 export type SupportedWebhookEvent = WebhookPushEventSchema | WebhookMergeRequestEventSchema
-export interface WebhookHandlerResult {
+
+// Claude-specific result
+export interface ClaudeWebhookHandlerResult {
+  mergeRequestIid: string | number
+  messageParams: { messages: MessageParam[], systemPrompt: string }
+  gitLabBaseUrl: URL
+  provider: 'anthropic'
+}
+
+// OpenAI-specific result
+export interface OpenAIWebhookHandlerResult {
   mergeRequestIid: string | number
   messageParams: ChatCompletionMessageParam[]
   gitLabBaseUrl: URL
+  provider: 'openai'
 }
+
+export type WebhookHandlerResult = ClaudeWebhookHandlerResult | OpenAIWebhookHandlerResult
 
 export type GitLabWebhookHandler<TWebhookEvent extends SupportedWebhookEvent = SupportedWebhookEvent> = (event: TWebhookEvent, envVariables: {
   gitlabUrl: URL
@@ -32,9 +46,10 @@ type GitLabErrorName =
     | 'FAILED_TO_POST_COMMENT'
     | 'UNSUPPORTED_EVENT_TYPE'
 
-type OpenAIErrorName =
+type AIErrorName =
     | 'MISSING_AI_COMPLETION'
 
 export class GitLabError extends BaseError<GitLabErrorName> { }
-export class OpenAIError extends BaseError<OpenAIErrorName> { }
+export class AnthropicError extends BaseError<AIErrorName> { }
+export class OpenAIError extends BaseError<AIErrorName> { }
 // #endregion

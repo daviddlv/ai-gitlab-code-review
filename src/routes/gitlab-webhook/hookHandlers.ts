@@ -1,7 +1,8 @@
-import { buildPrompt } from '../../prompt/index.js'
-import { GitLabError, type CommentPayload, type GitLabWebhookHandler, type SupportedWebhookEvent } from './types.js'
+import { buildClaudePrompt, buildOpenAIPrompt } from '../../prompt/index.js'
+import { GitLabError, type CommentPayload, type GitLabWebhookHandler, type SupportedWebhookEvent, type WebhookHandlerResult } from './types.js'
 import { fetchBranchDiff, fetchPreEditFiles } from './services.js'
 import type { WebhookMergeRequestEventSchema } from '@gitbeaker/rest'
+import { getProviderFromModel, type AIModel } from '../../config/index.js'
 
 const supportedMergeRequestActions: Array<WebhookMergeRequestEventSchema['object_attributes']['action']> = [
   'update'
@@ -44,12 +45,27 @@ export const handleMergeRequestHook: GitLabWebhookHandler<WebhookMergeRequestEve
   })
   if (oldFiles instanceof Error) return oldFiles
 
-  const messageParams = buildPrompt({ oldFiles, changes: changes.diffs ?? [] })
+  // Determine which provider to use based on AI_MODEL env variable
+  // This will be passed from the environment in the route handler
+  const aiModel = process.env.AI_MODEL as AIModel
+  const provider = getProviderFromModel(aiModel)
 
-  return {
-    mergeRequestIid,
-    gitLabBaseUrl,
-    messageParams
+  if (provider === 'anthropic') {
+    const messageParams = buildClaudePrompt({ oldFiles, changes: changes.diffs ?? [] })
+    return {
+      mergeRequestIid,
+      gitLabBaseUrl,
+      messageParams,
+      provider: 'anthropic' as const
+    }
+  } else {
+    const messageParams = buildOpenAIPrompt({ oldFiles, changes: changes.diffs ?? [] })
+    return {
+      mergeRequestIid,
+      gitLabBaseUrl,
+      messageParams,
+      provider: 'openai' as const
+    }
   }
 }
 

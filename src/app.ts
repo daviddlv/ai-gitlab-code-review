@@ -28,13 +28,26 @@ const app: FastifyPluginAsync<AppOptions> = async (
   await fastify.register(fastifyEnv, {
     confKey: 'env',
     schema: S.object()
-      .prop('OPENAI_API_KEY', S.string().required())
+      .prop('ANTHROPIC_API_KEY', S.string())
+      .prop('OPENAI_API_KEY', S.string())
       .prop('GITLAB_TOKEN', S.string().required())
       .prop('GITLAB_URL', S.string().required())
       .prop('AI_MODEL', S.string().enum(AI_MODELS).required())
       .valueOf(),
     dotenv: true
   })
+
+  // Validate that at least one API key is provided based on the model
+  const { AI_MODEL, ANTHROPIC_API_KEY, OPENAI_API_KEY } = fastify.env
+  const isClaudeModel = AI_MODEL.startsWith('claude')
+  const isOpenAIModel = AI_MODEL.startsWith('gpt')
+
+  if (isClaudeModel && !ANTHROPIC_API_KEY) {
+    throw new Error('ANTHROPIC_API_KEY is required when using Claude models')
+  }
+  if (isOpenAIModel && !OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY is required when using OpenAI models')
+  }
 
   // Do not touch the following lines
 

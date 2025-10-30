@@ -1,9 +1,11 @@
+import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
 import type { RepositoryCompareSchema } from '@gitbeaker/rest'
-import type { ChatCompletion, ChatModel } from 'openai/resources/index.mjs'
-import type { ChatCompletionMessageParam } from 'openai/resources/index.js'
-import { type GitLabFetchHeaders, OpenAIError, GitLabError, type CommentPayload } from './types.js'
+import type { Message, MessageParam } from '@anthropic-ai/sdk/resources/messages.js'
+import type { ChatCompletion, ChatCompletionMessageParam } from 'openai/resources/index.mjs'
+import { type GitLabFetchHeaders, AnthropicError, OpenAIError, GitLabError, type CommentPayload } from './types.js'
 import { AI_MODEL_TEMPERATURE } from '../../prompt/index.js'
+import type { ClaudeModel, OpenAIModel } from '../../config/index.js'
 
 type GitLabFetchFunction<URLParams extends Record<string, any> = {}, Result = GitLabError> = (fetchParams: {
   gitLabBaseUrl: URL
@@ -91,18 +93,50 @@ export const fetchPreEditFiles: GitLabFetchFunction<FetchPreEditFilesParams, Fet
   }, [])
 }
 
-export async function generateAICompletion (messages: ChatCompletionMessageParam[], openaiInstance: OpenAI, aiModel: ChatModel): Promise<ChatCompletion | OpenAIError> {
+export async function generateClaudeCompletion (
+  messages: MessageParam[], 
+  systemPrompt: string,
+  anthropicInstance: Anthropic, 
+  aiModel: ClaudeModel
+): Promise<Message | AnthropicError> {
+  let completion: Message | Error
+
+  try {
+    completion = await anthropicInstance.messages.create({
+      model: aiModel,
+      temperature: AI_MODEL_TEMPERATURE,
+      max_tokens: 4096,
+      system: systemPrompt,
+      messages
+    })
+  } catch (error: any) {
+    completion = error
+  }
+
+  if (completion instanceof Error) {
+    return new AnthropicError({
+      name: 'MISSING_AI_COMPLETION',
+      message: 'Failed to generate AI completion'
+    })
+  }
+
+  return completion
+}
+
+export async function generateOpenAICompletion (
+  messages: ChatCompletionMessageParam[],
+  openaiInstance: OpenAI, 
+  aiModel: OpenAIModel
+): Promise<ChatCompletion | OpenAIError> {
   let completion: ChatCompletion | Error
 
   try {
-    completion = await openaiInstance.chat.completions.create(
-      {
-        model: aiModel,
-        temperature: AI_MODEL_TEMPERATURE,
-        stream: false,
-        messages
-      }
-    )
+    completion = await openaiInstance.chat.completions.create({
+      model: aiModel,
+      temperature: AI_MODEL_TEMPERATURE,
+      stream: false,
+      messages
+    })
   } catch (error: any) {
     completion = error
   }

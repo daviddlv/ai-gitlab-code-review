@@ -25,17 +25,29 @@ cd ai-code-reviewer
 
 2. Create a `.env` file by copying the `.env.example` file and set the required environment variables:
 
+### For Anthropic Claude:
+```
+ANTHROPIC_API_KEY=<your Anthropic API key>
+GITLAB_TOKEN=<your GitLab API token>
+GITLAB_URL=https://gitlab.com/api/v4
+AI_MODEL=claude-3-5-sonnet-20241022
+```
+
+### For OpenAI:
 ```
 OPENAI_API_KEY=<your OpenAI API key>
 GITLAB_TOKEN=<your GitLab API token>
 GITLAB_URL=https://gitlab.com/api/v4
-AI_MODEL=<an AI model from the ones supported by OpenAI>
+AI_MODEL=gpt-4o
 ```
 
-- `OPEN_API_KEY` is your ChatGPT account’s key
+- `ANTHROPIC_API_KEY` is your Anthropic Claude account's API key (required for Claude models)
+- `OPENAI_API_KEY` is your OpenAI account's API key (required for GPT models)
 - `GITLAB_TOKEN` is a personal gitlab account token. You can create it [here](https://gitlab.com/-/user_settings/personal_access_tokens) and it can be either be your own personal token or a token from a gitlab account created _ad hoc_
-- `GITLAB_URL` it’s the latest gitlab’s api version url, currently https://gitlab.com/api/v4
-- `AI_MODEL` is the model you want to use from OpenAI. You can use `gpt-3.5-turbo` or any other model supported by OpenAI.
+- `GITLAB_URL` it's the latest gitlab's api version url, currently https://gitlab.com/api/v4
+- `AI_MODEL` is the model you want to use. Supported models:
+  - **Claude**: `claude-3-5-sonnet-20241022`, `claude-3-5-haiku-20241022`, `claude-3-opus-20240229`, etc.
+  - **OpenAI**: `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo`, etc.
 
 ### Docker
 

@@ -1,8 +1,9 @@
 import { type FastifyPluginAsync } from 'fastify'
+import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
-import { buildAnswer } from '../../prompt/index.js'
+import { buildClaudeAnswer, buildOpenAIAnswer } from '../../prompt/index.js'
 import { buildCommentPayload } from './hookHandlers.js'
-import { generateAICompletion, postAIComment } from './services.js'
+import { generateClaudeCompletion, generateOpenAICompletion, postAIComment } from './services.js'
 import type { GitLabWebhookRequest } from './index.js'
 
 export const postAIReview: FastifyPluginAsync =
@@ -27,17 +28,41 @@ export const postAIReview: FastifyPluginAsync =
           if (fastify.gitLabWebhookHandlerResult == null) return
 
           // CREATE AI COMMENT
-          const { messageParams, gitLabBaseUrl, mergeRequestIid } = fastify.gitLabWebhookHandlerResult
+          const webhookResult = fastify.gitLabWebhookHandlerResult
+          const { gitLabBaseUrl, mergeRequestIid, provider } = webhookResult
 
           try {
-            const openaiInstance = new OpenAI({
-              apiKey: fastify.env.OPENAI_API_KEY
-            })
-            const AIModel = fastify.env.AI_MODEL
+            let answer: string
 
-            fastify.log.info('Generating AI completion...')
-            const completion = await generateAICompletion(messageParams, openaiInstance, AIModel)
-            const answer = buildAnswer(completion)
+            if (provider === 'anthropic') {
+              const anthropicInstance = new Anthropic({
+                apiKey: fastify.env.ANTHROPIC_API_KEY
+              })
+              const AIModel = fastify.env.AI_MODEL
+
+              fastify.log.info('Generating Claude AI completion...')
+              const completion = await generateClaudeCompletion(
+                webhookResult.messageParams.messages,
+                webhookResult.messageParams.systemPrompt,
+                anthropicInstance,
+                AIModel as any
+              )
+              answer = buildClaudeAnswer(completion)
+            } else {
+              const openaiInstance = new OpenAI({
+                apiKey: fastify.env.OPENAI_API_KEY
+              })
+              const AIModel = fastify.env.AI_MODEL
+
+              fastify.log.info('Generating OpenAI completion...')
+              const completion = await generateOpenAICompletion(
+                webhookResult.messageParams,
+                openaiInstance,
+                AIModel as any
+              )
+              answer = buildOpenAIAnswer(completion)
+            }
+
             const commentPayload = buildCommentPayload(answer, request.body.object_kind)
 
             fastify.log.info('AI completion generated successfully, posting comment on the merge request...')

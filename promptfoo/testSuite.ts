@@ -4,21 +4,36 @@ import { dependencyDeletionTestCase } from './test-cases/dependency-deletion/ind
 import { fileDeletionTestCase } from './test-cases/file-deletion/index.js'
 import { newFileTestCase } from './test-cases/new-file/index.js'
 import { subtleErrorsTestCase } from './test-cases/subtle-errors/index.js'
-import { type BuildPromptParameters, buildPrompt } from '../src/prompt/index.js'
+import { type BuildPromptParameters, buildClaudePrompt, buildOpenAIPrompt } from '../src/prompt/index.js'
+
+const AI_MODEL = process.env.AI_MODEL || ''
+const isClaudeModel = AI_MODEL.startsWith('claude')
 
 const prompts: EvaluateTestSuite['prompts'] = [
-  ({ vars }: { vars: BuildPromptParameters }) => buildPrompt(vars)
+  ({ vars }: { vars: BuildPromptParameters }) => {
+    if (isClaudeModel) {
+      const { messages, systemPrompt } = buildClaudePrompt(vars)
+      // Convert to format compatible with Anthropic provider
+      return [
+        { role: 'system', content: systemPrompt },
+        ...messages
+      ]
+    } else {
+      // OpenAI format
+      return buildOpenAIPrompt(vars)
+    }
+  }
 ]
 
 const providers: EvaluateTestSuite['providers'] = [
   {
-    id: `openai:${process.env.AI_MODEL}`
+    id: isClaudeModel 
+      ? `anthropic:messages:${AI_MODEL}`
+      : `openai:${AI_MODEL}`
   }
 ]
 
-const tests: Array<TestCase<
-BuildPromptParameters
->> = [
+const tests: Array<TestCase<any>> = [
   breakingChangesAndErrorsTestCase,
   dependencyDeletionTestCase,
   fileDeletionTestCase,
@@ -27,7 +42,7 @@ BuildPromptParameters
 ]
 
 export const promptTestSuite: EvaluateTestSuite = {
-  description: 'Code review eval',
+  description: 'Code review eval with Claude',
   prompts,
   providers,
   tests,
