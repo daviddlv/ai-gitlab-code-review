@@ -44,6 +44,7 @@ type GitLabErrorName =
     | 'EMPTY_DIFF'
     | 'MISSING_OLD_FILES'
     | 'FAILED_TO_POST_COMMENT'
+    | 'FAILED_TO_APPROVE_MR'
     | 'UNSUPPORTED_EVENT_TYPE'
 
 type AIErrorName =

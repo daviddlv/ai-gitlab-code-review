@@ -29,15 +29,23 @@ export const fetchBranchDiff: GitLabFetchFunction<FetchBranchParams, FetchBranch
   compareUrl.searchParams.append('to', sourceBranch)
   compareUrl.searchParams.append('unidiff', String(true))
 
+  console.log('Fetching branch diff from:', compareUrl.toString())
+  console.log('Headers:', { ...headers, 'private-token': headers['private-token'] ? '[REDACTED]' : undefined })
+
   let branchDiff: Response | Error
   try {
     branchDiff = (
       await fetch(compareUrl, { headers: {...headers} })
     )
   } catch (error: any) {
+    console.error('Fetch error:', error.message)
     branchDiff = error
   }
   if (branchDiff instanceof Error || !branchDiff.ok) {
+    if (branchDiff instanceof Response) {
+      const errorText = await branchDiff.text()
+      console.error('GitLab API error:', branchDiff.status, errorText)
+    }
     return new GitLabError({
       name: 'MISSING_DIFF',
       message: 'Failed to fetch branch diff'
@@ -101,6 +109,8 @@ export async function generateClaudeCompletion (
 ): Promise<Message | AnthropicError> {
   let completion: Message | Error
 
+  console.log('Calling Claude API with:', { model: aiModel, messageCount: messages.length })
+
   try {
     completion = await anthropicInstance.messages.create({
       model: aiModel,
@@ -110,13 +120,14 @@ export async function generateClaudeCompletion (
       messages
     })
   } catch (error: any) {
+    console.error('Claude API error:', error.message, error.status, error.error)
     completion = error
   }
 
   if (completion instanceof Error) {
     return new AnthropicError({
       name: 'MISSING_AI_COMPLETION',
-      message: 'Failed to generate AI completion'
+      message: `Failed to generate AI completion: ${completion.message}`
     })
   }
 
@@ -130,6 +141,8 @@ export async function generateOpenAICompletion (
 ): Promise<ChatCompletion | OpenAIError> {
   let completion: ChatCompletion | Error
 
+  console.log('Calling OpenAI API with:', { model: aiModel, messageCount: messages.length })
+
   try {
     completion = await openaiInstance.chat.completions.create({
       model: aiModel,
@@ -138,13 +151,14 @@ export async function generateOpenAICompletion (
       messages
     })
   } catch (error: any) {
+    console.error('OpenAI API error:', error.message, error.status, error.code)
     completion = error
   }
 
   if (completion instanceof Error) {
     return new OpenAIError({
       name: 'MISSING_AI_COMPLETION',
-      message: 'Failed to generate AI completion'
+      message: `Failed to generate AI completion: ${completion.message}`
     })
   }
 
@@ -178,6 +192,36 @@ export const postAIComment: GitLabFetchFunction<PostAICommentParams, PostAIComme
     return new GitLabError({
       name: 'FAILED_TO_POST_COMMENT',
       message: 'Failed to post AI comment'
+    })
+  }
+}
+
+interface ApproveMergeRequestParams {
+  mergeRequestIid: string | number
+}
+type ApproveMergeRequestResult = void | GitLabError
+export const approveMergeRequest: GitLabFetchFunction<ApproveMergeRequestParams, ApproveMergeRequestResult> = async ({
+  gitLabBaseUrl,
+  headers,
+  mergeRequestIid
+}): Promise<void | GitLabError> => {
+  const approveUrl = new URL(`${gitLabBaseUrl}/merge_requests/${mergeRequestIid}/approve`)
+  let approveResponse: Response | Error
+  try {
+    approveResponse = await fetch(approveUrl, {
+      method: 'POST',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json'
+      }
+    })
+  } catch (error: any) {
+    approveResponse = error
+  }
+  if (approveResponse instanceof Error || !approveResponse.ok) {
+    return new GitLabError({
+      name: 'FAILED_TO_APPROVE_MR',
+      message: 'Failed to approve merge request'
     })
   }
 }

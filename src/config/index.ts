@@ -1,4 +1,5 @@
 export type ClaudeModel = 
+  | 'claude-sonnet-4-5-20250929'
   | 'claude-3-5-sonnet-20241022'
   | 'claude-3-5-sonnet-20240620'
   | 'claude-3-5-haiku-20241022'
@@ -21,6 +22,7 @@ export type AIModel = ClaudeModel | OpenAIModel
 export type AIProvider = 'anthropic' | 'openai'
 
 export const CLAUDE_MODELS: ClaudeModel[] = [
+  'claude-sonnet-4-5-20250929',
   'claude-3-5-sonnet-20241022',
   'claude-3-5-sonnet-20240620',
   'claude-3-5-haiku-20241022',

@@ -88,6 +88,22 @@ For production mode
 
 Run the test cases.
 
+## Deployment
+
+### Google Cloud Run
+
+This project is configured for automatic deployment to Google Cloud Run via GitHub Actions.
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed deployment instructions.
+
+Quick start:
+1. Set up a Google Cloud project
+2. Configure GitHub secrets
+3. Push to `main` or `feat/claude-ai` branch
+4. Application is automatically deployed!
+
+Deployment cost: ~$1-2/month for typical code review usage.
+
 ## Learn More
 
 To learn Fastify, check out the [Fastify documentation](https://fastify.dev/docs/latest/).

@@ -1,11 +1,13 @@
 import { buildClaudePrompt, buildOpenAIPrompt } from '../../prompt/index.js'
-import { GitLabError, type CommentPayload, type GitLabWebhookHandler, type SupportedWebhookEvent, type WebhookHandlerResult } from './types.js'
+import { GitLabError, type CommentPayload, type GitLabWebhookHandler, type SupportedWebhookEvent } from './types.js'
 import { fetchBranchDiff, fetchPreEditFiles } from './services.js'
 import type { WebhookMergeRequestEventSchema } from '@gitbeaker/rest'
 import { getProviderFromModel, type AIModel } from '../../config/index.js'
 
 const supportedMergeRequestActions: Array<WebhookMergeRequestEventSchema['object_attributes']['action']> = [
-  'update'
+  'open',
+  'update',
+  'reopen'
 ] as const
 
 export const handleMergeRequestHook: GitLabWebhookHandler<WebhookMergeRequestEventSchema> = async (mergeRequestEvent: WebhookMergeRequestEventSchema, {
@@ -22,7 +24,12 @@ export const handleMergeRequestHook: GitLabWebhookHandler<WebhookMergeRequestEve
     }
   } = mergeRequestEvent
 
-  if (!supportedMergeRequestActions.includes(action)) return
+  console.log('MR action received:', action, 'Supported actions:', supportedMergeRequestActions)
+  
+  if (!supportedMergeRequestActions.includes(action)) {
+    console.log('Action not supported, skipping')
+    return
+  }
 
   const gitLabBaseUrl = new URL(`${gitlabUrl}/projects/${targetProjectId}`)
 

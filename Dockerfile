@@ -19,5 +19,10 @@ FROM base
 COPY --from=prod-deps /gitlab-ai-review/node_modules /gitlab-ai-review/node_modules
 # Get the dist folder correctly compiled with the dev dependencies
 COPY --from=build /gitlab-ai-review/dist /gitlab-ai-review/dist
-EXPOSE 3000
-CMD [ "pnpm", "docker:start" ]
+
+# Cloud Run sets PORT environment variable, default to 8080 if not set
+ENV PORT=8080
+EXPOSE 8080
+
+# Use the PORT environment variable with node
+CMD ["node", "dist/server.js"]

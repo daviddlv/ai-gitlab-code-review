@@ -21,7 +21,7 @@ declare module 'fastify' {
   }
 }
 
-const gitlabWebhook: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
+const gitlabWebhook: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
   fastify
     .decorate<GitLabWebhookHandlerReturnType>('gitLabWebhookHandlerResult',
     new GitLabError({
@@ -70,16 +70,36 @@ const gitlabWebhook: FastifyPluginAsync = async (fastify, opts): Promise<void> =
       fastify.log.error(gitLabWebhookHandlerResult.message, gitLabWebhookHandlerResult)
       const statusCode = gitLabWebhookHandlerResult instanceof BaseError ? gitLabWebhookHandlerResult.statusCode : 500
       reply.code(statusCode).send({ result: gitLabWebhookHandlerResult })
+      return // Important: arrêter ici si erreur
     }
 
     fastify.log.info('Webhook handled successfully, passing control to AI completion')
+    fastify.log.info('Webhook result:', { 
+      hasResult: !!gitLabWebhookHandlerResult,
+      resultType: gitLabWebhookHandlerResult?.constructor?.name 
+    })
+    
+    // Sauvegarder le résultat avant d'envoyer la réponse
+    const webhookResult = gitLabWebhookHandlerResult
+    
     // We return a 200 OK to GitLab to avoid
     // the webhook to timeout due to the AI completion
     // taking too long
     reply.code(200).send({ status: 'OK' })
+    
+    // CREATE AI COMMENT AND POST IT ON MERGE REQUEST (async, après la réponse)
+    // On utilise setImmediate pour exécuter après l'envoi de la réponse
+    setImmediate(() => {
+      fastify.log.info('About to call postAIReview with:', {
+        hasWebhookResult: !!webhookResult,
+        hasBody: !!request.body
+      })
+      postAIReview(fastify, request.body, webhookResult)
+        .catch(error => {
+          fastify.log.error('Error in postAIReview:', error)
+        })
+    })
   })
-  // CREATE AI COMMENT AND POST IT ON MERGE REQUEST
-  postAIReview(fastify, opts)
 }
 
 export default gitlabWebhook

@@ -1,0 +1,8 @@
+# Cloud Run deployment
+.gcloud/
+key.json
+service-account-key.json
+
+# Secrets
+*.key
+*.pem

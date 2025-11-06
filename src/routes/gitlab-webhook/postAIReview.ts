@@ -1,83 +1,151 @@
-import { type FastifyPluginAsync } from 'fastify'
 import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
 import { buildClaudeAnswer, buildOpenAIAnswer } from '../../prompt/index.js'
 import { buildCommentPayload } from './hookHandlers.js'
-import { generateClaudeCompletion, generateOpenAICompletion, postAIComment } from './services.js'
-import type { GitLabWebhookRequest } from './index.js'
+import { generateClaudeCompletion, generateOpenAICompletion, postAIComment, approveMergeRequest } from './services.js'
 
-export const postAIReview: FastifyPluginAsync =
-    async (fastify): Promise<void> => {
-      fastify.addHook<GitLabWebhookRequest>('onResponse',
-        async (request, reply) => {
-          if (reply.statusCode !== 200) {
-            // Do not execute onResponse hook if the response status code is not 200
-            return
-          }
-          if (request.headers['x-gitlab-token'] !== fastify.env.GITLAB_TOKEN) {
-            fastify.log.error({ error: 'Unauthorized' })
-            return
-          }
-          if (request.body == null) {
-            fastify.log.error({ error: 'Bad Request' })
-            return
-          }
+function shouldApproveMR(aiResponse: string): boolean {
+  const lowerResponse = aiResponse.toLowerCase()
+  
+  // Mots-clés négatifs qui indiquent des problèmes
+  const negativeKeywords = [
+    'erreur', 'error',
+    'bug', 'problème', 'problem',
+    'critique', 'critical',
+    'vulnérabilité', 'vulnerability',
+    'sécurité', 'security issue',
+    'attention', 'warning',
+    'risque', 'risk',
+    'à corriger', 'must fix', 'should fix',
+    'incorrect', 'wrong',
+    'manquant', 'missing',
+    'casser', 'break'
+  ]
+  
+  // Si la réponse contient des mots-clés négatifs, ne pas approuver
+  const hasNegativeKeywords = negativeKeywords.some(keyword => lowerResponse.includes(keyword))
+  
+  if (hasNegativeKeywords) {
+    return false
+  }
+  
+  // Mots-clés positifs qui indiquent une bonne qualité
+  const positiveKeywords = [
+    'lgtm', 'looks good',
+    'approuvé', 'approved',
+    'bon', 'good',
+    'correct', 'bien',
+    'parfait', 'perfect',
+    'aucun problème', 'no issue',
+    'conforme', 'compliant'
+  ]
+  
+  const hasPositiveKeywords = positiveKeywords.some(keyword => lowerResponse.includes(keyword))
+  
+  // Approuver si présence de mots positifs et absence de mots négatifs
+  return hasPositiveKeywords
+}
 
-          if (fastify.gitLabWebhookHandlerResult instanceof Error) throw fastify.gitLabWebhookHandlerResult
+export async function postAIReview(
+  fastify: any,
+  webhookBody: any,
+  webhookResult: any
+): Promise<void> {
+  fastify.log.info('postAIReview called with:', {
+    hasWebhookBody: !!webhookBody,
+    hasWebhookResult: !!webhookResult,
+    webhookResultType: webhookResult?.constructor?.name,
+    isError: webhookResult instanceof Error
+  })
 
-          if (fastify.gitLabWebhookHandlerResult == null) return
+  if (webhookResult instanceof Error) {
+    fastify.log.error('Webhook handler result is an error, skipping AI review')
+    return
+  }
 
-          // CREATE AI COMMENT
-          const webhookResult = fastify.gitLabWebhookHandlerResult
-          const { gitLabBaseUrl, mergeRequestIid, provider } = webhookResult
+  if (webhookResult == null) {
+    fastify.log.warn('No webhook handler result, skipping AI review', { webhookResult })
+    return
+  }
 
-          try {
-            let answer: string
+  fastify.log.info('Starting AI review process...')
 
-            if (provider === 'anthropic') {
-              const anthropicInstance = new Anthropic({
-                apiKey: fastify.env.ANTHROPIC_API_KEY
-              })
-              const AIModel = fastify.env.AI_MODEL
+  // CREATE AI COMMENT
+  const { gitLabBaseUrl, mergeRequestIid, provider } = webhookResult
 
-              fastify.log.info('Generating Claude AI completion...')
-              const completion = await generateClaudeCompletion(
-                webhookResult.messageParams.messages,
-                webhookResult.messageParams.systemPrompt,
-                anthropicInstance,
-                AIModel as any
-              )
-              answer = buildClaudeAnswer(completion)
-            } else {
-              const openaiInstance = new OpenAI({
-                apiKey: fastify.env.OPENAI_API_KEY
-              })
-              const AIModel = fastify.env.AI_MODEL
+  try {
+    let answer: string
 
-              fastify.log.info('Generating OpenAI completion...')
-              const completion = await generateOpenAICompletion(
-                webhookResult.messageParams,
-                openaiInstance,
-                AIModel as any
-              )
-              answer = buildOpenAIAnswer(completion)
-            }
+    if (provider === 'anthropic') {
+      const anthropicInstance = new Anthropic({
+        apiKey: fastify.env.ANTHROPIC_API_KEY
+      })
+      const AIModel = fastify.env.AI_MODEL
 
-            const commentPayload = buildCommentPayload(answer, request.body.object_kind)
+      fastify.log.info('Generating Claude AI completion...')
+      const completion = await generateClaudeCompletion(
+        webhookResult.messageParams.messages,
+        webhookResult.messageParams.systemPrompt,
+        anthropicInstance,
+        AIModel as any
+      )
+      
+      if (completion instanceof Error) {
+        fastify.log.error('Claude completion failed:', completion.message)
+      }
+      
+      answer = buildClaudeAnswer(completion)
+    } else {
+      const openaiInstance = new OpenAI({
+        apiKey: fastify.env.OPENAI_API_KEY
+      })
+      const AIModel = fastify.env.AI_MODEL
 
-            fastify.log.info('AI completion generated successfully, posting comment on the merge request...')
-            // POST COMMENT ON MERGE REQUEST
-            const aiComment = postAIComment({
-              gitLabBaseUrl,
-              mergeRequestIid,
-              headers: fastify.gitLabFetchHeaders
-            }, commentPayload)
-            if (aiComment instanceof Error) throw aiComment
-            fastify.log.info('AI Comment posted successfully')
-          } catch (error) {
-            if (error instanceof Error) {
-              fastify.log.error(error.message, error)
-            }
-          }
-        })
+      fastify.log.info('Generating OpenAI completion...')
+      const completion = await generateOpenAICompletion(
+        webhookResult.messageParams,
+        openaiInstance,
+        AIModel as any
+      )
+      
+      if (completion instanceof Error) {
+        fastify.log.error('OpenAI completion failed:', completion.message)
+      }
+      
+      answer = buildOpenAIAnswer(completion)
     }
+
+    const commentPayload = buildCommentPayload(answer, webhookBody.object_kind)
+
+    fastify.log.info('AI completion generated successfully, posting comment on the merge request...')
+    // POST COMMENT ON MERGE REQUEST
+    const aiComment = await postAIComment({
+      gitLabBaseUrl,
+      mergeRequestIid,
+      headers: fastify.gitLabFetchHeaders
+    }, commentPayload)
+    if (aiComment instanceof Error) throw aiComment
+    fastify.log.info('AI Comment posted successfully')
+
+    // Analyser la réponse et approuver si pas de problème détecté
+    if (shouldApproveMR(answer)) {
+      fastify.log.info('AI review looks good, approving merge request...')
+      const approval = await approveMergeRequest({
+        gitLabBaseUrl,
+        mergeRequestIid,
+        headers: fastify.gitLabFetchHeaders
+      })
+      if (approval instanceof Error) {
+        fastify.log.warn('Failed to approve merge request:', approval.message)
+      } else {
+        fastify.log.info('Merge request approved successfully')
+      }
+    } else {
+      fastify.log.info('AI review detected potential issues, not approving merge request')
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      fastify.log.error('Error during AI review:', error.message, error)
+    }
+  }
+}

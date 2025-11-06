@@ -4,6 +4,8 @@ services:
       context: .
     ports:
       - published: 9655
-        target: 3000
+        target: 8080
+    environment:
+      - PORT=8080
     env_file:
       - .env
