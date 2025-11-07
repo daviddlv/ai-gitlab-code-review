@@ -1,6 +1,7 @@
 import type { CommitDiffSchema } from '@gitbeaker/rest'
 import type { CoreMessage } from 'ai'
 import type { OldFileVersion } from '../routes/gitlab-webhook/services.js'
+import type { CommentMode } from '../routes/gitlab-webhook/types.js'
 
 const QUESTIONS = `\n\nQuestions:\n
 1. Can you summarize the changes in a succinct bullet point list\n
@@ -10,6 +11,49 @@ const QUESTIONS = `\n\nQuestions:\n
 5. Can you find any bugs, if so please explain and reference line numbers?\n
 6. Do you see any code that could induce security issues?\n\n`
 
+const STRUCTURED_INSTRUCTIONS = `
+**IMPORTANT: You MUST respond with a valid JSON object in this exact format:**
+
+\`\`\`json
+{
+  "summary": "Your overall review summary here (markdown formatted). Include general observations, recommendations, and overall assessment.",
+  "inline_comments": [
+    {
+      "file": "path/to/file.ts",
+      "line": 42,
+      "comment": "Your specific comment about this line (can include markdown, code blocks, emojis)"
+    }
+  ]
+}
+\`\`\`
+
+**Rules:**
+- The JSON must be valid (no trailing commas, proper quotes, no line breaks in strings unless escaped)
+- The "summary" field contains your general review (can be empty if no general observations)
+- The "inline_comments" array contains specific issues found in the code
+- Each inline comment MUST have: "file" (exact path from diff), "line" (number), "comment" (text)
+- **CRITICAL**: When you find bugs, security issues, or code problems, you MUST create an inline comment at the exact line where the issue is
+- Use line numbers from the NEW file (after changes), not the old file
+- If no specific issues found, use an empty array: "inline_comments": []
+- You can use markdown formatting in both "summary" and "comment" fields
+- Focus on actionable feedback
+- For each issue found (bugs, security problems, etc.), create a separate inline_comment entry
+
+**Example for a bug found at line 15:**
+\`\`\`json
+{
+  "summary": "Found 1 critical bug that needs to be fixed.",
+  "inline_comments": [
+    {
+      "file": "src/utils/helper.ts",
+      "line": 15,
+      "comment": "🐛 **Bug**: Potential null pointer exception. The variable \`user\` can be null here but is not checked before accessing \`user.name\`."
+    }
+  ]
+}
+\`\`\`
+`
+
 const SYSTEM_PROMPT = 'You are a senior developer reviewing code changes. Format the response so it renders nicely in GitLab, with nice and organized markdown (use code blocks if needed), and send just the response no comments on the request, when answering include a short version of the question, so we know what it is.'
 
 export const AI_MODEL_TEMPERATURE = 0.2
@@ -17,10 +61,17 @@ export const AI_MODEL_TEMPERATURE = 0.2
 export interface BuildPromptParameters {
   oldFiles: OldFileVersion[]
   changes: Array<Pick<CommitDiffSchema, 'diff'>>
+  commentMode?: CommentMode
 }
 
 // Unified prompt builder for all AI providers (using Vercel AI SDK format)
-export const buildPrompt = ({ changes, oldFiles }: BuildPromptParameters): CoreMessage[] => {
+export const buildPrompt = ({ changes, oldFiles, commentMode = 'global' }: BuildPromptParameters): CoreMessage[] => {
+  let modeInstructions = ''
+  
+  if (commentMode === 'structured') {
+    modeInstructions = STRUCTURED_INSTRUCTIONS
+  }
+  
   const content = `
     As a senior developer, review the following code changes and answer code review questions about them. The code changes are provided as git diff strings.
     The entire file before the change is provided for context. Make sure to keep it as a reference when reviewing the changes.
@@ -32,6 +83,7 @@ export const buildPrompt = ({ changes, oldFiles }: BuildPromptParameters): CoreM
     ${changes.map(change => change.diff).join('\n\n')}
 
     ${QUESTIONS}
+    ${modeInstructions}
     `
 
   return [

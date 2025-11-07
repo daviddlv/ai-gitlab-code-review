@@ -2,12 +2,40 @@ import type { WebhookPushEventSchema, WebhookMergeRequestEventSchema } from '@gi
 import { BaseError } from '../../config/errors.js'
 import type { CoreMessage } from 'ai'
 import type { AIProvider, AIModel } from '../../config/index.js'
+import type { Logger } from '../../utils/logger.js'
 
 export interface GitLabFetchHeaders {
   'private-token': string
 }
 
 export type CommentPayload = { body: string } | { note: string }
+
+// #region Inline Comments
+export interface InlineCommentPosition {
+  base_sha: string
+  head_sha: string
+  start_sha: string
+  position_type: 'text'
+  new_path: string
+  new_line: number
+  old_path?: string
+  old_line?: number
+}
+
+export interface InlineComment {
+  file: string
+  line: number
+  comment: string
+  isOldFile?: boolean // true if commenting on deleted line
+}
+
+export interface StructuredReview {
+  summary: string
+  inline_comments: InlineComment[]
+}
+
+export type CommentMode = 'global' | 'structured'
+// #endregion
 
 // #region Webhook Handler
 export type SupportedWebhookEvent = WebhookPushEventSchema | WebhookMergeRequestEventSchema
@@ -19,12 +47,19 @@ export interface WebhookHandlerResult {
   gitLabBaseUrl: URL
   provider: AIProvider
   modelName: AIModel
+  baseSha?: string
+  headSha?: string
+  startSha?: string
 }
 
-export type GitLabWebhookHandler<TWebhookEvent extends SupportedWebhookEvent = SupportedWebhookEvent> = (event: TWebhookEvent, envVariables: {
-  gitlabUrl: URL
-  headers: GitLabFetchHeaders
-}) => Promise<WebhookHandlerResult | Error | undefined>
+export type GitLabWebhookHandler<TWebhookEvent extends SupportedWebhookEvent = SupportedWebhookEvent> = (
+  logger: Logger,
+  event: TWebhookEvent,
+  envVariables: {
+    gitlabUrl: URL
+    headers: GitLabFetchHeaders
+  }
+) => Promise<WebhookHandlerResult | Error | undefined>
 
 export type GitLabWebhookHandlerReturnType = Awaited<ReturnType<GitLabWebhookHandler>>
 // #endregion

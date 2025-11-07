@@ -7,6 +7,17 @@ Gitlab AI Code Review is a JS script that leverages multiple AI providers (Anthr
 - Automatically reviews code changes in GitLab repositories
 - Provides feedback on code clarity, simplicity, bugs, and security issues
 - Generates Markdown-formatted responses for easy readability in GitLab
+- **2 comment modes**: Choose between global comments or structured JSON with inline comments
+- **Simple and reliable**: JSON parsing for precise inline comments
+
+### Comment Modes
+
+The application supports 2 modes for posting AI review comments:
+
+- **`global`** (default): Single comment with entire review - Simple and reliable
+- **`structured`**: AI generates JSON with inline comments on specific lines + summary - Recommended for detailed reviews
+
+📖 **See [COMMENT_MODES.md](COMMENT_MODES.md) for detailed documentation about each mode.**
 
 ### Prerequisites
 
@@ -58,8 +69,13 @@ AI_MODEL=gemini-1.5-pro
   - **Claude**: `claude-3-5-sonnet-20241022`, `claude-3-5-haiku-20241022`, `claude-sonnet-4-5-20250929`, etc.
   - **OpenAI**: `gpt-5`, `gpt-5-mini`, `gpt-4o`, `gpt-4o-mini`, `o4-mini`, `o3`, etc.
   - **Gemini**: `gemini-1.5-pro`, `gemini-1.5-flash`, `gemini-2.0-flash-exp`, etc.
+- `COMMENT_MODE` (optional) is the comment posting mode:
+  - `global` (default): Single comment with entire review - Simple and reliable
+  - `structured`: JSON format with inline comments on specific lines + summary - Recommended ⭐
 
 📖 **See [MODELS.md](MODELS.md) for a complete list of available models and recommendations.**
+
+📖 **See [COMMENT_MODES.md](COMMENT_MODES.md) for detailed documentation about comment modes.**
 
 ### Docker
 

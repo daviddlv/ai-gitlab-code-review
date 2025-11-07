@@ -3,6 +3,7 @@ import { GitLabError, type GitLabFetchHeaders, type GitLabWebhookHandlerReturnTy
 import { handleMergeRequestHook } from './hookHandlers.js'
 import { postAIReview } from './postAIReview.js'
 import { BaseError } from '../../config/errors.js'
+import { Logger } from '../../utils/logger.js'
 
 export interface GitLabWebhookRequest {
   Body?: SupportedWebhookEvent
@@ -24,82 +25,109 @@ declare module 'fastify' {
 const gitlabWebhook: FastifyPluginAsync = async (fastify, _opts): Promise<void> => {
   fastify
     .decorate<GitLabWebhookHandlerReturnType>('gitLabWebhookHandlerResult',
-    new GitLabError({
-      name: 'UNSUPPORTED_EVENT_TYPE',
-      message: 'Webhook event type not supported'
-    })
-  )
-    .decorate<GitLabFetchHeaders>('gitLabFetchHeaders', {
-    'private-token': fastify.env.GITLAB_TOKEN
-  })
-    .post<GitLabWebhookRequest>('/', async function (request, reply) {
-    const gitlabUrl = new URL(fastify.env.GITLAB_URL)
-
-    if (request.headers['x-gitlab-token'] !== fastify.env.GITLAB_TOKEN) {
-      reply.code(401).send({ error: 'Unauthorized' })
-      return
-    }
-    if (request.body == null) {
-      reply.code(400).send({ error: 'Bad Request' })
-      return
-    }
-
-    // FETCH NEEDED PARAMS FOR AI COMPLETION
-    try {
-      /**
-                 * Each handler has to return a prompt.
-                 * The prompt is built by fetching:
-                 *
-                 * 1. The changes in the branch
-                 * 2. The files before the edit
-                 */
-
-      if (request.body.object_kind === 'merge_request') {
-        fastify.log.info('Handling merge request webhook...')
-        fastify.gitLabWebhookHandlerResult = await handleMergeRequestHook(request.body, {
-          gitlabUrl,
-          headers: fastify.gitLabFetchHeaders
-        })
-      }
-    } catch (error: any) {
-      fastify.gitLabWebhookHandlerResult = error
-    }
-    const { gitLabWebhookHandlerResult } = fastify
-
-    if (gitLabWebhookHandlerResult instanceof Error) {
-      fastify.log.error(gitLabWebhookHandlerResult.message, gitLabWebhookHandlerResult)
-      const statusCode = gitLabWebhookHandlerResult instanceof BaseError ? gitLabWebhookHandlerResult.statusCode : 500
-      reply.code(statusCode).send({ result: gitLabWebhookHandlerResult })
-      return // Important: arrêter ici si erreur
-    }
-
-    fastify.log.info('Webhook handled successfully, passing control to AI completion')
-    fastify.log.info('Webhook result:', { 
-      hasResult: !!gitLabWebhookHandlerResult,
-      resultType: gitLabWebhookHandlerResult?.constructor?.name 
-    })
-    
-    // Sauvegarder le résultat avant d'envoyer la réponse
-    const webhookResult = gitLabWebhookHandlerResult
-    
-    // We return a 200 OK to GitLab to avoid
-    // the webhook to timeout due to the AI completion
-    // taking too long
-    reply.code(200).send({ status: 'OK' })
-    
-    // CREATE AI COMMENT AND POST IT ON MERGE REQUEST (async, après la réponse)
-    // On utilise setImmediate pour exécuter après l'envoi de la réponse
-    setImmediate(() => {
-      fastify.log.info('About to call postAIReview with:', {
-        hasWebhookResult: !!webhookResult,
-        hasBody: !!request.body
+      new GitLabError({
+        name: 'UNSUPPORTED_EVENT_TYPE',
+        message: 'Webhook event type not supported'
       })
-      postAIReview(fastify, request.body, webhookResult)
-        .catch(error => {
-          fastify.log.error('Error in postAIReview:', error)
-        })
+    )
+    .decorate<GitLabFetchHeaders>('gitLabFetchHeaders', {
+      'private-token': fastify.env.GITLAB_TOKEN
     })
-  })
+    .post<GitLabWebhookRequest>('/', async function (request, reply) {
+      const logger = new Logger(request.log)
+      const gitlabUrl = new URL(fastify.env.GITLAB_URL)
+
+      logger.info('Received GitLab webhook request', {
+        eventType: request.body?.object_kind,
+        hasToken: !!request.headers['x-gitlab-token']
+      })
+
+      logger.debug('Webhook headers', { headers: request.headers })
+
+      // Token validation
+      if (request.headers['x-gitlab-token'] !== fastify.env.GITLAB_TOKEN) {
+        logger.warn('Unauthorized webhook request - invalid token')
+        reply.code(401).send({ error: 'Unauthorized' })
+        return
+      }
+
+      // Body validation
+      if (request.body == null) {
+        logger.warn('Bad request - missing body')
+        reply.code(400).send({ error: 'Bad Request' })
+        return
+      }
+
+      logger.debug('Full webhook payload', { payload: request.body })
+
+      // FETCH NEEDED PARAMS FOR AI COMPLETION
+      try {
+        logger.info('Processing webhook event', {
+          eventType: request.body.object_kind
+        })
+
+        if (request.body.object_kind === 'merge_request') {
+          logger.info('Handling merge request webhook')
+
+          fastify.gitLabWebhookHandlerResult = await handleMergeRequestHook(
+            logger,
+            request.body,
+            {
+              gitlabUrl,
+              headers: fastify.gitLabFetchHeaders
+            }
+          )
+
+          logger.info('Merge request webhook handled', {
+            hasResult: !!fastify.gitLabWebhookHandlerResult,
+            isError: fastify.gitLabWebhookHandlerResult instanceof Error
+          })
+        } else {
+          logger.warn('Unsupported webhook event type', {
+            eventType: request.body.object_kind
+          })
+        }
+      } catch (error: any) {
+        logger.error('Exception during webhook processing', error)
+        fastify.gitLabWebhookHandlerResult = error
+      }
+
+      const { gitLabWebhookHandlerResult } = fastify
+
+      // Handle errors
+      if (gitLabWebhookHandlerResult instanceof Error) {
+        logger.error('Webhook handler returned error', gitLabWebhookHandlerResult)
+
+        const statusCode = gitLabWebhookHandlerResult instanceof BaseError
+          ? gitLabWebhookHandlerResult.statusCode
+          : 500
+
+        reply.code(statusCode).send({ result: gitLabWebhookHandlerResult })
+        return
+      }
+
+      logger.info('Webhook processed successfully, preparing AI review')
+
+      // Save result before sending response
+      const webhookResult = gitLabWebhookHandlerResult
+
+      // Return 200 OK to GitLab immediately to avoid webhook timeout
+      logger.info('Sending 200 OK response to GitLab')
+      reply.code(200).send({ status: 'OK' })
+
+      // CREATE AI COMMENT AND POST IT ON MERGE REQUEST (async, after response)
+      setImmediate(() => {
+        logger.info('Starting async AI review process', {
+          hasWebhookResult: !!webhookResult,
+          hasRequestBody: !!request.body
+        })
+
+        postAIReview(logger, fastify, request.body, webhookResult)
+          .catch(error => {
+            logger.error('Error in postAIReview', error)
+          })
+      })
+    })
 }
 
 export default gitlabWebhook

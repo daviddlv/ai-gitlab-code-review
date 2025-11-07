@@ -26,14 +26,17 @@ read -p "Enter region [europe-west1]: " REGION
 REGION=${REGION:-europe-west1}
 read -p "Enter service name [ai-gitlab-code-review]: " SERVICE_NAME
 SERVICE_NAME=${SERVICE_NAME:-ai-gitlab-code-review}
-read -p "Enter AI Model [claude-sonnet-4-5-20250929]: " AI_MODEL
-AI_MODEL=${AI_MODEL:-claude-sonnet-4-5-20250929}
+read -p "Enter AI Model [claude-sonnet-4-5]: " AI_MODEL
+AI_MODEL=${AI_MODEL:-claude-sonnet-4-5}
+read -p "Enter Comment Mode [structured]: " COMMENT_MODE
+COMMENT_MODE=${COMMENT_MODE:-structured}
 
 echo -e "\n${YELLOW}📋 Configuration:${NC}"
 echo "  Project ID: $PROJECT_ID"
 echo "  Region: $REGION"
 echo "  Service: $SERVICE_NAME"
 echo "  AI Model: $AI_MODEL"
+echo "  Comment Mode: $COMMENT_MODE"
 echo ""
 
 read -p "Continue with deployment? (y/n) " -n 1 -r
@@ -78,6 +81,7 @@ gcloud run deploy $SERVICE_NAME \
   --min-instances 0 \
   --set-env-vars "GITLAB_URL=https://gitlab.com/api/v4" \
   --set-env-vars "AI_MODEL=$AI_MODEL" \
+  --set-env-vars "COMMENT_MODE=$COMMENT_MODE" \
   --set-secrets "ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest" \
   --set-secrets "OPENAI_API_KEY=OPENAI_API_KEY:latest" \
   --set-secrets "GITLAB_TOKEN=GITLAB_TOKEN:latest"
