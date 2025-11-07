@@ -1,8 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk'
-import OpenAI from 'openai'
-import { buildClaudeAnswer, buildOpenAIAnswer } from '../../prompt/index.js'
+import { buildAnswer } from '../../prompt/index.js'
 import { buildCommentPayload } from './hookHandlers.js'
-import { generateClaudeCompletion, generateOpenAICompletion, postAIComment, approveMergeRequest } from './services.js'
+import { generateAICompletion, postAIComment, approveMergeRequest } from './services.js'
 
 function shouldApproveMR(aiResponse: string): boolean {
   const lowerResponse = aiResponse.toLowerCase()
@@ -71,48 +69,24 @@ export async function postAIReview(
   fastify.log.info('Starting AI review process...')
 
   // CREATE AI COMMENT
-  const { gitLabBaseUrl, mergeRequestIid, provider } = webhookResult
+  const { gitLabBaseUrl, mergeRequestIid, provider, modelName, messages } = webhookResult
 
   try {
+    fastify.log.info(`Generating AI completion with ${provider}...`)
+    
+    const result = await generateAICompletion(
+      messages,
+      provider,
+      modelName
+    )
+    
     let answer: string
-
-    if (provider === 'anthropic') {
-      const anthropicInstance = new Anthropic({
-        apiKey: fastify.env.ANTHROPIC_API_KEY
-      })
-      const AIModel = fastify.env.AI_MODEL
-
-      fastify.log.info('Generating Claude AI completion...')
-      const completion = await generateClaudeCompletion(
-        webhookResult.messageParams.messages,
-        webhookResult.messageParams.systemPrompt,
-        anthropicInstance,
-        AIModel as any
-      )
-      
-      if (completion instanceof Error) {
-        fastify.log.error('Claude completion failed:', completion.message)
-      }
-      
-      answer = buildClaudeAnswer(completion)
+    
+    if (result instanceof Error) {
+      fastify.log.error('AI completion failed:', result.message)
+      answer = buildAnswer(undefined, result)
     } else {
-      const openaiInstance = new OpenAI({
-        apiKey: fastify.env.OPENAI_API_KEY
-      })
-      const AIModel = fastify.env.AI_MODEL
-
-      fastify.log.info('Generating OpenAI completion...')
-      const completion = await generateOpenAICompletion(
-        webhookResult.messageParams,
-        openaiInstance,
-        AIModel as any
-      )
-      
-      if (completion instanceof Error) {
-        fastify.log.error('OpenAI completion failed:', completion.message)
-      }
-      
-      answer = buildOpenAIAnswer(completion)
+      answer = buildAnswer(result.text)
     }
 
     const commentPayload = buildCommentPayload(answer, webhookBody.object_kind)

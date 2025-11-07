@@ -1,6 +1,6 @@
 # AI Code Reviewer
 
-Gitlab AI Code Review is a JS script that leverages OpenAI's GPT-3.5-turbo to automatically review code changes in GitLab repositories. It listens for merge request and push events, fetches the associated code changes, and provides feedback on the changes in a Markdown format.
+Gitlab AI Code Review is a JS script that leverages multiple AI providers (Anthropic Claude, OpenAI, Google Gemini) to automatically review code changes in GitLab repositories. It listens for merge request and push events, fetches the associated code changes, and provides feedback on the changes in a Markdown format.
 
 ## Features
 
@@ -26,7 +26,7 @@ cd ai-code-reviewer
 2. Create a `.env` file by copying the `.env.example` file and set the required environment variables:
 
 ### For Anthropic Claude:
-```
+```bash
 ANTHROPIC_API_KEY=<your Anthropic API key>
 GITLAB_TOKEN=<your GitLab API token>
 GITLAB_URL=https://gitlab.com/api/v4
@@ -34,20 +34,32 @@ AI_MODEL=claude-3-5-sonnet-20241022
 ```
 
 ### For OpenAI:
-```
+```bash
 OPENAI_API_KEY=<your OpenAI API key>
 GITLAB_TOKEN=<your GitLab API token>
 GITLAB_URL=https://gitlab.com/api/v4
 AI_MODEL=gpt-4o
 ```
 
+### For Google Gemini:
+```bash
+GOOGLE_GENERATIVE_AI_API_KEY=<your Google API key>
+GITLAB_TOKEN=<your GitLab API token>
+GITLAB_URL=https://gitlab.com/api/v4
+AI_MODEL=gemini-1.5-pro
+```
+
 - `ANTHROPIC_API_KEY` is your Anthropic Claude account's API key (required for Claude models)
-- `OPENAI_API_KEY` is your OpenAI account's API key (required for GPT models)
+- `OPENAI_API_KEY` is your OpenAI account's API key (required for OpenAI GPT models)
+- `GOOGLE_GENERATIVE_AI_API_KEY` is your Google API key (required for Gemini models)
 - `GITLAB_TOKEN` is a personal gitlab account token. You can create it [here](https://gitlab.com/-/user_settings/personal_access_tokens) and it can be either be your own personal token or a token from a gitlab account created _ad hoc_
 - `GITLAB_URL` it's the latest gitlab's api version url, currently https://gitlab.com/api/v4
-- `AI_MODEL` is the model you want to use. Supported models:
-  - **Claude**: `claude-3-5-sonnet-20241022`, `claude-3-5-haiku-20241022`, `claude-3-opus-20240229`, etc.
-  - **OpenAI**: `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo`, etc.
+- `AI_MODEL` is the model you want to use. Supported providers:
+  - **Claude**: `claude-3-5-sonnet-20241022`, `claude-3-5-haiku-20241022`, `claude-sonnet-4-5-20250929`, etc.
+  - **OpenAI**: `gpt-5`, `gpt-5-mini`, `gpt-4o`, `gpt-4o-mini`, `o4-mini`, `o3`, etc.
+  - **Gemini**: `gemini-1.5-pro`, `gemini-1.5-flash`, `gemini-2.0-flash-exp`, etc.
+
+📖 **See [MODELS.md](MODELS.md) for a complete list of available models and recommendations.**
 
 ### Docker
 

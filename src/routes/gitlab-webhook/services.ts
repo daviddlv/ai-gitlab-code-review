@@ -1,11 +1,11 @@
-import Anthropic from '@anthropic-ai/sdk'
-import OpenAI from 'openai'
+import { generateText, type CoreMessage, type LanguageModel } from 'ai'
+import { anthropic } from '@ai-sdk/anthropic'
+import { openai } from '@ai-sdk/openai'
+import { google } from '@ai-sdk/google'
 import type { RepositoryCompareSchema } from '@gitbeaker/rest'
-import type { Message, MessageParam } from '@anthropic-ai/sdk/resources/messages.js'
-import type { ChatCompletion, ChatCompletionMessageParam } from 'openai/resources/index.mjs'
-import { type GitLabFetchHeaders, AnthropicError, OpenAIError, GitLabError, type CommentPayload } from './types.js'
+import { type GitLabFetchHeaders, GitLabError, type CommentPayload } from './types.js'
 import { AI_MODEL_TEMPERATURE } from '../../prompt/index.js'
-import type { ClaudeModel, OpenAIModel } from '../../config/index.js'
+import type { AIModel, AIProvider } from '../../config/index.js'
 
 type GitLabFetchFunction<URLParams extends Record<string, any> = {}, Result = GitLabError> = (fetchParams: {
   gitLabBaseUrl: URL
@@ -101,68 +101,49 @@ export const fetchPreEditFiles: GitLabFetchFunction<FetchPreEditFilesParams, Fet
   }, [])
 }
 
-export async function generateClaudeCompletion (
-  messages: MessageParam[], 
-  systemPrompt: string,
-  anthropicInstance: Anthropic, 
-  aiModel: ClaudeModel
-): Promise<Message | AnthropicError> {
-  let completion: Message | Error
-
-  console.log('Calling Claude API with:', { model: aiModel, messageCount: messages.length })
+// Unified AI completion function using Vercel AI SDK
+export async function generateAICompletion (
+  messages: CoreMessage[],
+  provider: AIProvider,
+  modelName: AIModel
+): Promise<{ text: string } | Error> {
+  console.log('Calling AI API with:', { provider, model: modelName, messageCount: messages.length })
 
   try {
-    completion = await anthropicInstance.messages.create({
-      model: aiModel,
-      temperature: AI_MODEL_TEMPERATURE,
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages
+    // Create the appropriate model instance based on provider
+    let model: LanguageModel
+    
+    switch (provider) {
+      case 'anthropic':
+        // API key from ANTHROPIC_API_KEY env var
+        model = anthropic(modelName)
+        break
+      
+      case 'openai':
+        // API key from OPENAI_API_KEY env var
+        model = openai(modelName)
+        break
+      
+      case 'google':
+        // API key from GOOGLE_GENERATIVE_AI_API_KEY env var
+        model = google(modelName)
+        break
+      
+      default:
+        throw new Error(`Unsupported provider: ${provider}`)
+    }
+
+    const result = await generateText({
+      model,
+      messages,
+      temperature: AI_MODEL_TEMPERATURE
     })
+
+    return { text: result.text }
   } catch (error: any) {
-    console.error('Claude API error:', error.message, error.status, error.error)
-    completion = error
+    console.error('AI API error:', error.message, error.status, error.code)
+    return error
   }
-
-  if (completion instanceof Error) {
-    return new AnthropicError({
-      name: 'MISSING_AI_COMPLETION',
-      message: `Failed to generate AI completion: ${completion.message}`
-    })
-  }
-
-  return completion
-}
-
-export async function generateOpenAICompletion (
-  messages: ChatCompletionMessageParam[],
-  openaiInstance: OpenAI, 
-  aiModel: OpenAIModel
-): Promise<ChatCompletion | OpenAIError> {
-  let completion: ChatCompletion | Error
-
-  console.log('Calling OpenAI API with:', { model: aiModel, messageCount: messages.length })
-
-  try {
-    completion = await openaiInstance.chat.completions.create({
-      model: aiModel,
-      temperature: AI_MODEL_TEMPERATURE,
-      stream: false,
-      messages
-    })
-  } catch (error: any) {
-    console.error('OpenAI API error:', error.message, error.status, error.code)
-    completion = error
-  }
-
-  if (completion instanceof Error) {
-    return new OpenAIError({
-      name: 'MISSING_AI_COMPLETION',
-      message: `Failed to generate AI completion: ${completion.message}`
-    })
-  }
-
-  return completion
 }
 
 interface PostAICommentParams {
