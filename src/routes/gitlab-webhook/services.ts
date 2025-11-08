@@ -192,8 +192,21 @@ function cleanJsonString(jsonText: string): string {
   // Trim whitespace
   let cleaned = jsonText.trim()
   
+  // Remove markdown code blocks if present
+  cleaned = cleaned.replace(/```json\s*/g, '').replace(/```\s*$/g, '')
+  
   // Remove trailing commas before closing braces/brackets
   cleaned = cleaned.replace(/,(\s*[}\]])/g, '$1')
+  
+  // Fix common escape issues in strings
+  // Replace unescaped newlines inside strings with \n
+  cleaned = cleaned.replace(/"([^"]*)\n([^"]*?)"/g, (_match, before, after) => {
+    return `"${before}\\n${after}"`
+  })
+  
+  // Fix unescaped quotes inside strings (but not already escaped ones)
+  // This is tricky - we look for patterns like: "text"text" and fix to "text\"text"
+  cleaned = cleaned.replace(/([^\\])"([^",:}\]]*)"([^,:}\]]*)/g, '$1\\"$2\\"$3')
   
   // Try to fix unterminated strings by finding the error position
   // This is a heuristic approach - it might not work for all cases
@@ -344,13 +357,148 @@ export async function generateAICompletion (
   }
 }
 
+/**
+ * Find existing bot comment on the merge request
+ * Returns the note ID if found, null otherwise
+ */
+async function findExistingBotComment (
+  logger: Logger,
+  params: {
+    gitLabBaseUrl: URL
+    headers: GitLabFetchHeaders
+    mergeRequestIid: string | number
+  }
+): Promise<number | null> {
+  const notesUrl = new URL(`${params.gitLabBaseUrl}/merge_requests/${params.mergeRequestIid}/notes`)
+  
+  logger.debug('Searching for existing bot comment', {
+    url: notesUrl.toString(),
+    mergeRequestIid: params.mergeRequestIid
+  })
+
+  try {
+    const response = await fetch(notesUrl, {
+      method: 'GET',
+      headers: params.headers
+    })
+
+    if (!response.ok) {
+      logger.warn('Failed to fetch existing notes', {
+        status: response.status,
+        statusText: response.statusText
+      })
+      return null
+    }
+
+    const notes = await response.json() as Array<{ id: number, author: { username: string }, body: string, system: boolean }>
+    
+    logger.debug('Fetched existing notes', { count: notes.length })
+
+    // Filter bot notes (non-system notes from the current bot user)
+    const botNotes = notes.filter(note => 
+      !note.system && 
+      note.body?.includes('🤖') // Our bot comments include this emoji
+    )
+
+    if (botNotes.length > 0 && botNotes[0]) {
+      logger.info('Found existing bot comment', {
+        noteId: botNotes[0].id,
+        totalBotComments: botNotes.length
+      })
+      return botNotes[0].id
+    }
+
+    logger.debug('No existing bot comment found')
+    return null
+  } catch (error: any) {
+    logger.warn('Error searching for existing bot comment', {
+      error: error.message
+    })
+    return null
+  }
+}
+
+/**
+ * Update an existing AI comment
+ */
+async function updateAIComment (
+  logger: Logger,
+  params: {
+    gitLabBaseUrl: URL
+    headers: GitLabFetchHeaders
+    mergeRequestIid: string | number
+    noteId: number
+  },
+  commentPayload: CommentPayload
+): Promise<void | GitLabError> {
+  const updateUrl = new URL(`${params.gitLabBaseUrl}/merge_requests/${params.mergeRequestIid}/notes/${params.noteId}`)
+
+  logger.info('Updating existing AI comment', {
+    url: updateUrl.toString(),
+    noteId: params.noteId,
+    mergeRequestIid: params.mergeRequestIid
+  })
+
+  logger.debug('Update payload', { payload: commentPayload })
+
+  try {
+    const response = await fetch(updateUrl, {
+      method: 'PUT',
+      headers: {
+        ...params.headers,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(commentPayload)
+    })
+
+    if (!response.ok) {
+      let errorBody = ''
+      try {
+        errorBody = await response.text()
+      } catch {
+        errorBody = 'Unable to read error response'
+      }
+
+      logger.error('GitLab API returned error for comment update', undefined, {
+        status: response.status,
+        statusText: response.statusText,
+        errorBody,
+        noteId: params.noteId
+      })
+
+      return new GitLabError({
+        name: 'FAILED_TO_UPDATE_COMMENT',
+        message: `Failed to update AI comment: HTTP ${response.status} ${response.statusText}`,
+        statusCode: response.status,
+        error: new Error(`Response body: ${errorBody}`)
+      })
+    }
+
+    logger.info('Successfully updated AI comment', {
+      noteId: params.noteId,
+      mergeRequestIid: params.mergeRequestIid
+    })
+  } catch (error: any) {
+    logger.error('Failed to update AI comment', error, {
+      noteId: params.noteId,
+      mergeRequestIid: params.mergeRequestIid
+    })
+    return new GitLabError({
+      error,
+      name: 'FAILED_TO_UPDATE_COMMENT',
+      message: `Failed to update AI comment: ${error.message}`
+    })
+  }
+}
+
 interface PostAICommentParams {
   mergeRequestIid: string | number
 }
 type PostAICommentResult = void | GitLabError
 
 /**
- * Post AI review comment to merge request
+ * Post or update AI review comment to merge request
+ * If a bot comment already exists, it will be updated instead of creating a new one
  */
 export const postAIComment: GitLabFetchFunction<PostAICommentParams, PostAICommentResult> = async (
   logger,
@@ -361,15 +509,42 @@ export const postAIComment: GitLabFetchFunction<PostAICommentParams, PostAIComme
   },
   commentPayload: CommentPayload
 ): Promise<void | GitLabError> => {
-  const commentUrl = new URL(`${gitLabBaseUrl}/merge_requests/${mergeRequestIid}/notes`)
-
-  logger.info('Posting AI comment', {
-    url: commentUrl.toString(),
+  logger.info('Processing AI comment', {
     mergeRequestIid,
     payloadSize: JSON.stringify(commentPayload).length
   })
 
   logger.debug('Comment payload', { payload: commentPayload })
+
+  // Check if a bot comment already exists
+  const existingNoteId = await findExistingBotComment(logger, {
+    gitLabBaseUrl,
+    headers,
+    mergeRequestIid
+  })
+
+  // If exists, update it; otherwise create new one
+  if (existingNoteId !== null) {
+    logger.info('Updating existing bot comment', {
+      noteId: existingNoteId,
+      mergeRequestIid
+    })
+
+    return await updateAIComment(logger, {
+      gitLabBaseUrl,
+      headers,
+      mergeRequestIid,
+      noteId: existingNoteId
+    }, commentPayload)
+  }
+
+  // Create new comment
+  const commentUrl = new URL(`${gitLabBaseUrl}/merge_requests/${mergeRequestIid}/notes`)
+
+  logger.info('Creating new AI comment', {
+    url: commentUrl.toString(),
+    mergeRequestIid
+  })
 
   let aiComment: Response | Error
   try {
@@ -424,7 +599,7 @@ export const postAIComment: GitLabFetchFunction<PostAICommentParams, PostAIComme
     })
   }
 
-  logger.info('Successfully posted AI comment', { mergeRequestIid })
+  logger.info('Successfully created AI comment', { mergeRequestIid })
 }
 
 interface PostInlineCommentsParams {
@@ -576,6 +751,95 @@ export const postInlineComments: GitLabFetchFunction<PostInlineCommentsParams, P
 }
 
 /**
+ * Try to parse AI response using regex-based extraction
+ * More tolerant to JSON formatting errors
+ */
+function tryRegexParsing (
+  logger: Logger,
+  aiResponse: string
+): { summary: string, inlineComments: InlineComment[] } | null {
+  try {
+    // Extract summary - try multiple patterns
+    let summary = ''
+    const summaryMatch1 = aiResponse.match(/"summary"\s*:\s*"((?:[^"\\]|\\.)*)"/s)
+    const summaryMatch2 = aiResponse.match(/"summary"\s*:\s*"([^"]*)"/s)
+    
+    if (summaryMatch1?.[1]) {
+      summary = summaryMatch1[1].replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\\\/g, '\\')
+    } else if (summaryMatch2?.[1]) {
+      summary = summaryMatch2[1]
+    } else {
+      // Try to extract everything before inline_comments
+      const beforeInline = aiResponse.match(/"summary"\s*:\s*"([\s\S]*?)"\s*,?\s*"inline_comments"/s)
+      if (beforeInline?.[1]) {
+        summary = beforeInline[1]
+      } else {
+        // No summary found, return null to try JSON.parse
+        return null
+      }
+    }
+    
+    const result = {
+      summary,
+      inlineComments: [] as InlineComment[]
+    }
+    
+    // Extract inline comments with robust regex
+    const inlineCommentsSection = aiResponse.match(/"inline_comments"\s*:\s*\[([\s\S]*?)(?:\]|$)/s)
+    
+    if (inlineCommentsSection) {
+      const commentsText = inlineCommentsSection[1] ?? ''
+      
+      // Pattern 1: Standard format with all fields (any order)
+      const pattern1 = /\{\s*"file"\s*:\s*"([^"]+)"\s*,\s*"line"\s*:\s*(\d+)\s*,\s*"comment"\s*:\s*"((?:[^"\\]|\\.)*)"\s*\}/gs
+      let commentMatches = commentsText.matchAll(pattern1)
+      
+      for (const match of commentMatches) {
+        if (match[1] && match[2] && match[3]) {
+          result.inlineComments.push({
+            file: match[1],
+            line: parseInt(match[2]),
+            comment: match[3].replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\\\/g, '\\')
+          })
+        }
+      }
+      
+      // Pattern 2: More lenient - extract fields individually from each object
+      if (result.inlineComments.length === 0) {
+        const objectMatches = commentsText.matchAll(/\{[^}]*\}/gs)
+        
+        for (const objMatch of objectMatches) {
+          const obj = objMatch[0]
+          const fileMatch = obj.match(/"file"\s*:\s*"([^"]+)"/)
+          const lineMatch = obj.match(/"line"\s*:\s*(\d+)/)
+          const commentMatch = obj.match(/"comment"\s*:\s*"((?:[^"\\]|\\.)*)"/)
+          
+          if (fileMatch?.[1] && lineMatch?.[1] && commentMatch?.[1]) {
+            result.inlineComments.push({
+              file: fileMatch[1],
+              line: parseInt(lineMatch[1]),
+              comment: commentMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\\\/g, '\\')
+            })
+          }
+        }
+      }
+    }
+    
+    // Only return result if we got at least a summary
+    if (summary.length > 0) {
+      return result
+    }
+    
+    return null
+  } catch (error) {
+    logger.debug('Regex parsing failed', {
+      error: (error as Error).message
+    })
+    return null
+  }
+}
+
+/**
  * Parse structured JSON response from AI
  */
 export function parseStructuredResponse (
@@ -586,6 +850,24 @@ export function parseStructuredResponse (
     responseLength: aiResponse.length
   })
 
+  // Strategy: Try regex-based parsing FIRST (more tolerant), then JSON.parse as fallback
+  // This avoids JSON syntax errors from malformed AI responses
+  
+  logger.debug('Attempting regex-based parsing (primary method)')
+  const regexResult = tryRegexParsing(logger, aiResponse)
+  
+  if (regexResult) {
+    logger.info('Successfully parsed with regex-based method', {
+      hasSummary: !!regexResult.summary,
+      summaryLength: regexResult.summary.length,
+      inlineCommentCount: regexResult.inlineComments.length
+    })
+    return regexResult
+  }
+
+  // Fallback to JSON.parse if regex parsing failed
+  logger.debug('Regex parsing failed, attempting JSON.parse')
+  
   try {
     // Try to extract JSON from markdown code blocks
     const jsonMatch = aiResponse.match(/```json\s*([\s\S]*?)\s*```/) ||
@@ -611,60 +893,18 @@ export function parseStructuredResponse (
       inlineComments: parsed.inline_comments || []
     }
 
-    logger.info('Successfully parsed structured response', {
+    logger.info('Successfully parsed with JSON.parse', {
       hasSummary: !!result.summary,
       inlineCommentCount: result.inlineComments.length
     })
 
-    logger.debug('Parsed structured response', { result })
-
     return result
   } catch (error: any) {
-    logger.error('Failed to parse structured JSON response, using fallback', error, {
+    logger.error('Both parsing methods failed, using full response as summary', error, {
       responsePreview: aiResponse.substring(0, 500),
       responseLength: aiResponse.length,
       errorPosition: error.message.match(/position (\d+)/)?.[1]
     })
-
-    // Try alternative parsing: extract summary and inline_comments separately
-    try {
-      logger.debug('Attempting alternative parsing strategy')
-      
-      const summaryMatch = aiResponse.match(/"summary"\s*:\s*"((?:[^"\\]|\\.)*)"/s)
-      const inlineCommentsMatch = aiResponse.match(/"inline_comments"\s*:\s*\[([\s\S]*?)\]/s)
-      
-      if (summaryMatch || inlineCommentsMatch) {
-        const result = {
-          summary: summaryMatch?.[1]?.replace(/\\"/g, '"').replace(/\\n/g, '\n') || aiResponse,
-          inlineComments: [] as InlineComment[]
-        }
-        
-        if (inlineCommentsMatch) {
-          // Try to parse individual inline comments
-          const commentsText = inlineCommentsMatch[1] ?? ''
-          const commentMatches = commentsText.matchAll(/\{[^}]*"file"\s*:\s*"([^"]+)"[^}]*"line"\s*:\s*(\d+)[^}]*"comment"\s*:\s*"((?:[^"\\]|\\.)*)"[^}]*\}/gs)
-          
-          for (const match of commentMatches) {
-            result.inlineComments.push({
-              file: match[1]!,
-              line: parseInt(match[2]!),
-              comment: match[3]!.replace(/\\"/g, '"').replace(/\\n/g, '\n')
-            })
-          }
-        }
-        
-        logger.info('Successfully parsed with alternative strategy', {
-          hasSummary: !!result.summary,
-          inlineCommentCount: result.inlineComments.length
-        })
-        
-        return result
-      }
-    } catch (altError) {
-      logger.warn('Alternative parsing strategy also failed', {
-        error: (altError as Error).message
-      })
-    }
 
     // Final fallback: return full response as summary
     logger.warn('Using full AI response as summary fallback')

@@ -6,6 +6,7 @@ import type { Logger } from '../../utils/logger.js'
 
 export interface GitLabFetchHeaders {
   'private-token': string
+  [key: string]: string
 }
 
 export type CommentPayload = { body: string } | { note: string }
@@ -70,6 +71,7 @@ type GitLabErrorName =
     | 'EMPTY_DIFF'
     | 'MISSING_OLD_FILES'
     | 'FAILED_TO_POST_COMMENT'
+    | 'FAILED_TO_UPDATE_COMMENT'
     | 'FAILED_TO_APPROVE_MR'
     | 'UNSUPPORTED_EVENT_TYPE'
 

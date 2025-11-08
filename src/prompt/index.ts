@@ -27,15 +27,25 @@ const STRUCTURED_INSTRUCTIONS = `
 }
 \`\`\`
 
-**Rules:**
-- The JSON must be valid (no trailing commas, proper quotes, no line breaks in strings unless escaped)
-- The "summary" field contains your general review (can be empty if no general observations)
+**CRITICAL JSON FORMATTING RULES:**
+1. **Valid JSON**: The response MUST be valid JSON - no trailing commas, proper quotes everywhere
+2. **Escape special characters**: In strings, you MUST escape:
+   - Double quotes: Use \\" (e.g., "He said \\"hello\\"")
+   - Newlines: Use \\n (e.g., "First line\\nSecond line")
+   - Backslashes: Use \\\\ (e.g., "Path: C:\\\\folder")
+3. **No line breaks in strings**: Never put actual line breaks inside JSON string values
+4. **Markdown in strings**: You can use markdown but it must be properly escaped:
+   - Code blocks: "Example: \`code\` or \`\`\`javascript\\ncode\\n\`\`\`"
+   - Lists: "- Item 1\\n- Item 2\\n- Item 3"
+5. **Complete arrays**: Always close the inline_comments array, even if truncated
+
+**Content Rules:**
+- The "summary" field contains your general review (can be empty string "" if no general observations)
 - The "inline_comments" array contains specific issues found in the code
-- Each inline comment MUST have: "file" (exact path from diff), "line" (number), "comment" (text)
+- Each inline comment MUST have exactly 3 fields: "file" (string), "line" (number), "comment" (string)
 - **CRITICAL**: When you find bugs, security issues, or code problems, you MUST create an inline comment at the exact line where the issue is
 - Use line numbers from the NEW file (after changes), not the old file
 - If no specific issues found, use an empty array: "inline_comments": []
-- You can use markdown formatting in both "summary" and "comment" fields
 - Focus on actionable feedback
 - For each issue found (bugs, security problems, etc.), create a separate inline_comment entry
 
@@ -52,6 +62,12 @@ const STRUCTURED_INSTRUCTIONS = `
   ]
 }
 \`\`\`
+
+**Before sending your response:**
+- Verify the JSON is valid (you can mentally parse it)
+- Check all strings are properly escaped
+- Ensure no trailing commas
+- Confirm the structure matches exactly
 `
 
 const SYSTEM_PROMPT = 'You are a senior developer reviewing code changes. Format the response so it renders nicely in GitLab, with nice and organized markdown (use code blocks if needed), and send just the response no comments on the request, when answering include a short version of the question, so we know what it is.'
