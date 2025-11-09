@@ -1,6 +1,9 @@
 import Fastify from "fastify";
 import app from "./app.js";
 
+const PORT = parseInt(process.env.PORT || "8080");
+const HOST = process.env.HOST || "0.0.0.0";
+
 async function start() {
   const fastify = Fastify({
     logger: {
@@ -35,13 +38,11 @@ async function start() {
     await fastify.register(app);
 
     await fastify.listen({
-      port: fastify.env.PORT,
-      host: fastify.env.HOST,
+      port: PORT,
+      host: HOST,
     });
 
-    fastify.log.info(
-      `Server listening on ${fastify.env.HOST}:${fastify.env.PORT}`,
-    );
+    fastify.log.info(`Server listening on ${HOST}:${PORT}`);
   } catch (err) {
     fastify.log.error({ err }, "Failed to start server");
     process.exit(1);

@@ -42,8 +42,6 @@ const app: FastifyPluginAsync<AppOptions> = async (
         "COMMENT_MODE",
         S.string().enum(["global", "structured"]).default("structured"),
       )
-      .prop("HOST", S.string().default("0.0.0.0"))
-      .prop("PORT", S.number().default(8080))
       .valueOf(),
     dotenv: true,
   });

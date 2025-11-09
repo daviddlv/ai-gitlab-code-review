@@ -804,7 +804,11 @@ export const postInlineComments: GitLabFetchFunction<
 function tryRegexParsing(
   logger: FastifyBaseLogger,
   aiResponse: string,
-): { summary: string; inlineComments: InlineComment[] } | null {
+): {
+  summary: string;
+  approved: boolean;
+  inlineComments: InlineComment[];
+} | null {
   try {
     // Extract summary - try multiple patterns
     let summary = "";
@@ -823,7 +827,7 @@ function tryRegexParsing(
     } else {
       // Try to extract everything before inline_comments
       const beforeInline = aiResponse.match(
-        /"summary"\s*:\s*"([\s\S]*?)"\s*,?\s*"inline_comments"/s,
+        /"summary"\s*:\s*"([\s\S]*?)"\s*,?\s*"(approved|inline_comments)"/s,
       );
       if (beforeInline?.[1]) {
         summary = beforeInline[1];
@@ -833,8 +837,16 @@ function tryRegexParsing(
       }
     }
 
+    // Extract approved field - default to false if not found
+    let approved = false;
+    const approvedMatch = aiResponse.match(/"approved"\s*:\s*(true|false)/);
+    if (approvedMatch?.[1]) {
+      approved = approvedMatch[1] === "true";
+    }
+
     const result = {
       summary,
+      approved,
       inlineComments: [] as InlineComment[],
     };
 
@@ -908,7 +920,7 @@ function tryRegexParsing(
 export function parseStructuredResponse(
   logger: FastifyBaseLogger,
   aiResponse: string,
-): { summary: string; inlineComments: InlineComment[] } {
+): { summary: string; approved: boolean; inlineComments: InlineComment[] } {
   logger.debug("Parsing structured AI response", {
     responseLength: aiResponse.length,
   });
@@ -923,6 +935,7 @@ export function parseStructuredResponse(
     logger.info("Successfully parsed with regex-based method", {
       hasSummary: !!regexResult.summary,
       summaryLength: regexResult.summary.length,
+      approved: regexResult.approved,
       inlineCommentCount: regexResult.inlineComments.length,
     });
     return regexResult;
@@ -954,11 +967,13 @@ export function parseStructuredResponse(
 
     const result = {
       summary: parsed.summary || "",
+      approved: parsed.approved ?? false,
       inlineComments: parsed.inline_comments || [],
     };
 
     logger.info("Successfully parsed with JSON.parse", {
       hasSummary: !!result.summary,
+      approved: result.approved,
       inlineCommentCount: result.inlineComments.length,
     });
 
@@ -978,6 +993,7 @@ export function parseStructuredResponse(
     logger.warn("Using full AI response as summary fallback");
     return {
       summary: aiResponse,
+      approved: false, // Default to not approved when parsing fails
       inlineComments: [],
     };
   }

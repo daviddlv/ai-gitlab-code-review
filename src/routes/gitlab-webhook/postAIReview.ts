@@ -11,95 +11,6 @@ import type { CommentMode } from "./types.js";
 import type { FastifyBaseLogger } from "fastify";
 
 /**
- * Determine if MR should be approved based on AI response
- */
-function shouldApproveMR(
-  logger: FastifyBaseLogger,
-  aiResponse: string,
-): boolean {
-  logger.debug("Analyzing AI response for approval decision", {
-    responseLength: aiResponse.length,
-  });
-  logger.debug("Analyzing AI response for approval decision", {
-    responseLength: aiResponse.length,
-  });
-
-  const lowerResponse = aiResponse.toLowerCase();
-
-  // Negative keywords indicating issues
-  const negativeKeywords = [
-    "erreur",
-    "error",
-    "bug",
-    "problème",
-    "problem",
-    "critique",
-    "critical",
-    "vulnérabilité",
-    "vulnerability",
-    "sécurité",
-    "security issue",
-    "attention",
-    "warning",
-    "risque",
-    "risk",
-    "à corriger",
-    "must fix",
-    "should fix",
-    "incorrect",
-    "wrong",
-    "manquant",
-    "missing",
-    "casser",
-    "break",
-  ];
-
-  const hasNegativeKeywords = negativeKeywords.some((keyword) =>
-    lowerResponse.includes(keyword),
-  );
-
-  if (hasNegativeKeywords) {
-    logger.info("MR should not be approved - negative keywords found", {
-      foundKeywords: negativeKeywords.filter((k) => lowerResponse.includes(k)),
-    });
-    return false;
-  }
-
-  // Positive keywords indicating good quality
-  const positiveKeywords = [
-    "lgtm",
-    "looks good",
-    "approuvé",
-    "approved",
-    "bon",
-    "good",
-    "correct",
-    "bien",
-    "parfait",
-    "perfect",
-    "aucun problème",
-    "no issue",
-    "conforme",
-    "compliant",
-  ];
-
-  const hasPositiveKeywords = positiveKeywords.some((keyword) =>
-    lowerResponse.includes(keyword),
-  );
-
-  logger.info("MR approval decision", {
-    shouldApprove: hasPositiveKeywords,
-    hasPositiveKeywords,
-    hasNegativeKeywords,
-    foundPositiveKeywords: hasPositiveKeywords
-      ? positiveKeywords.filter((k) => lowerResponse.includes(k))
-      : [],
-  });
-
-  return hasPositiveKeywords;
-}
-
-/**
  * Post AI review comment to GitLab merge request
  */
 export async function postAIReview(
@@ -204,8 +115,10 @@ export async function postAIReview(
       commentMode,
     });
 
+    let shouldApprove = false;
+
     if (commentMode === "structured") {
-      await handleStructuredMode(logger, fastify, webhookBody, {
+      shouldApprove = await handleStructuredMode(logger, fastify, webhookBody, {
         answer,
         gitLabBaseUrl,
         mergeRequestIid,
@@ -219,13 +132,18 @@ export async function postAIReview(
         gitLabBaseUrl,
         mergeRequestIid,
       });
+      // In global mode, we don't have structured response, so don't auto-approve
+      shouldApprove = false;
     }
 
     // Step 3: Auto-approve if applicable
-    logger.info("Step 3/3: Checking if MR should be auto-approved");
+    logger.info("Step 3/3: Checking if MR should be auto-approved", {
+      shouldApprove,
+      commentMode,
+    });
 
-    if (shouldApproveMR(logger, answer)) {
-      logger.info("Approving merge request");
+    if (shouldApprove) {
+      logger.info("Approving merge request (approved by AI)");
 
       const approval = await approveMergeRequest(logger, {
         gitLabBaseUrl,
@@ -241,7 +159,9 @@ export async function postAIReview(
         logger.info("Merge request approved successfully");
       }
     } else {
-      logger.info("MR not approved - AI review detected potential issues");
+      logger.info(
+        "MR not approved - AI review detected issues or not in structured mode",
+      );
     }
 
     logger.info("AI review process completed successfully");
@@ -267,16 +187,20 @@ async function handleStructuredMode(
     headSha?: string;
     startSha?: string;
   },
-): Promise<void> {
+): Promise<boolean> {
   const { answer, gitLabBaseUrl, mergeRequestIid, baseSha, headSha, startSha } =
     params;
 
   logger.info("Processing structured mode response");
 
-  const { summary, inlineComments } = parseStructuredResponse(logger, answer);
+  const { summary, approved, inlineComments } = parseStructuredResponse(
+    logger,
+    answer,
+  );
 
   logger.info("Structured response parsed", {
     hasSummary: !!summary && summary.trim().length > 0,
+    approved,
     inlineCommentCount: inlineComments.length,
   });
 
@@ -355,6 +279,9 @@ async function handleStructuredMode(
 
     if (aiComment instanceof Error) throw aiComment;
   }
+
+  // Return the approved status from AI
+  return approved;
 }
 
 /**
