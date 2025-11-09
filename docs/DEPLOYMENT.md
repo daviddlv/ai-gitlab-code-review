@@ -112,6 +112,7 @@ Dans votre repository GitHub, allez dans **Settings > Secrets and variables > Ac
 ### Déploiement automatique
 
 Le déploiement se fait automatiquement via GitHub Actions sur les branches :
+
 - `main`
 - `feat/claude-ai`
 
@@ -178,6 +179,7 @@ https://console.cloud.google.com/run
 ## Coûts estimés
 
 Cloud Run facture uniquement lorsque votre service traite des requêtes :
+
 - **Requests**: ~$0.40 par million de requêtes
 - **CPU**: ~$0.00002400 par vCPU-seconde
 - **Memory**: ~$0.00000250 par GiB-seconde
@@ -207,11 +209,13 @@ echo -n "nouvelle_valeur" | gcloud secrets versions add ANTHROPIC_API_KEY --data
 ### Erreur: "Container manifest type must support amd64/linux"
 
 Si vous obtenez cette erreur lors du déploiement:
+
 ```
 ERROR: Cloud Run does not support image: Container manifest type 'application/vnd.oci.image.index.v1+json' must support amd64/linux.
 ```
 
 **Solution**: Utilisez `docker buildx` avec `--platform linux/amd64`:
+
 ```bash
 docker buildx build --platform linux/amd64 -t $IMAGE_NAME .
 ```
@@ -221,23 +225,27 @@ Cette erreur apparaît généralement sur Mac avec processeur Apple Silicon (M1/
 ### Erreur: "Default STARTUP TCP probe failed" / "DEADLINE_EXCEEDED"
 
 Si vous obtenez cette erreur:
+
 ```
-Default STARTUP TCP probe failed 1 time consecutively for container "ai-gitlab-code-review-1" on port 8080. 
+Default STARTUP TCP probe failed 1 time consecutively for container "ai-gitlab-code-review-1" on port 8080.
 The instance was not started. Connection failed with status DEADLINE_EXCEEDED.
 ```
 
 **Causes possibles**:
+
 1. L'application n'écoute pas sur le bon port
 2. L'application met trop de temps à démarrer
 3. L'endpoint de health check ne répond pas
 
 **Solutions**:
+
 - Vérifiez que l'application écoute sur `$PORT` (Cloud Run le définit automatiquement)
 - Le Dockerfile est configuré pour utiliser le port 8080 par défaut
 - Vérifiez les logs: `gcloud run services logs read ai-gitlab-code-review --region europe-west1`
 - Testez l'endpoint `/health` localement avant de déployer
 
 ### Le service ne démarre pas
+
 ```bash
 # Vérifier les logs
 gcloud run services logs read ai-gitlab-code-review --region europe-west1
@@ -247,6 +255,7 @@ gcloud run services describe ai-gitlab-code-review --region europe-west1
 ```
 
 ### Problèmes de permissions
+
 ```bash
 # Vérifier les permissions du compte de service
 gcloud projects get-iam-policy YOUR_PROJECT_ID \
@@ -255,6 +264,7 @@ gcloud projects get-iam-policy YOUR_PROJECT_ID \
 ```
 
 ### Image ne se build pas
+
 ```bash
 # Tester le build localement
 docker build -t test-image .

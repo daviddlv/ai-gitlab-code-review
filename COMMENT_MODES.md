@@ -1,24 +1,16 @@
 # Comment Modes# Comment Modes
 
-
-
 Ce projet supporte **2 modes** pour poster les commentaires de review IA sur GitLab. Configurez le mode via la variable d'environnement `COMMENT_MODE`.Ce projet supporte 2 modes différents pour poster les commentaires de review IA sur GitLab. Configurez le mode via la variable d'environnement `COMMENT_MODE`.
-
-
 
 ## 🌍 Mode `global` (défaut)## 🌍 Mode `global` (défaut)
 
-
-
 **Comportement classique** : Un seul commentaire global contenant toute la review.**Comportement classique** : Un seul commentaire global contenant toute la review.
 
-
-
-```bash```bash
+`bash`bash
 
 COMMENT_MODE=globalCOMMENT_MODE=global
 
-``````
+```````
 
 
 
@@ -360,7 +352,7 @@ Si les SHAs sont manquants (cas rare), le système fallback automatiquement sur 
 
 ### API GitLab utilisée
 
-4. **Fallback automatique** : 
+4. **Fallback automatique** :
 
 | Type de commentaire | Endpoint GitLab |   - Si le JSON est invalide → Le texte complet est utilisé comme résumé
 
@@ -530,7 +522,7 @@ Posting inline comments: {```
 
 2. Code clarity: Generally good
 
-✅ Si les SHAs sont présents → OK  
+✅ Si les SHAs sont présents → OK
 
 ❌ Si absents → Le système devrait fallback automatiquement sur résumé global3. Potential issues:
 
@@ -666,13 +658,11 @@ AI_MODEL=claude-3-5-sonnet-20241022
 
 COMMENT_MODE=structured  # ⭐ Recommandé**Exemple de sortie IA :**
 
-``````
+```````
 
 General Review Summary:
 
 ### Configuration avancée (GPT-5)Overall, the code quality is good. The changes introduce a new authentication system.
-
-
 
 ```bashIn `src/auth/login.ts` line 23: Missing input validation for email format
 
@@ -686,7 +676,7 @@ AI_MODEL=gpt-5```
 
 COMMENT_MODE=structured
 
-```**Rendu GitLab :**
+````**Rendu GitLab :**
 
 - **Commentaire global :** "General Review Summary: Overall, the code quality is good... All tests are passing..."
 
@@ -712,7 +702,7 @@ Le mode par défaut est `global`, qui correspond au comportement de la v1.x.
 
 Pour activer les commentaires inline :COMMENT_MODE=structured
 
-```
+````
 
 1. Ouvrez votre fichier `.env`
 
@@ -734,27 +724,29 @@ Pour activer les commentaires inline :COMMENT_MODE=structured
 
   "summary": "Overall review summary with general observations",
 
----  "inline_comments": [
+--- "inline_comments": [
 
     {
 
-## 📚 Ressources      "file": "src/services/user.ts",
+## 📚 Ressources "file": "src/services/user.ts",
 
       "line": 42,
 
-- [EXAMPLES.md](./EXAMPLES.md) - Exemples concrets de sorties pour chaque mode      "comment": "This variable should be const instead of let"
+- [EXAMPLES.md](./EXAMPLES.md) - Exemples concrets de sorties pour chaque mode "comment": "This variable should be const instead of let"
 
-- [GITLAB_API.md](./GITLAB_API.md) - Documentation complète de l'API GitLab    },
+- [GITLAB_API.md](./GITLAB_API.md) - Documentation complète de l'API GitLab },
 
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - Architecture technique détaillée    {
+- [ARCHITECTURE.md](./ARCHITECTURE.md) - Architecture technique détaillée {
 
-- [README.md](./README.md) - Guide principal du projet      "file": "src/api/routes.ts",
+- [README.md](./README.md) - Guide principal du projet "file": "src/api/routes.ts",
 
-      "line": 89,
-      "comment": "Consider adding error handling here"
-    }
+        "line": 89,
+        "comment": "Consider adding error handling here"
+      }
+
   ]
-}
+  }
+
 ```
 
 **Avantages :**
@@ -769,13 +761,15 @@ Pour activer les commentaires inline :COMMENT_MODE=structured
 
 **Prompt reçu par l'IA :**
 ```
+
 Please provide your review in the following JSON format:
 {
-  "summary": "Overall review summary",
-  "inline_comments": [
-    { "file": "path/to/file.ts", "line": 42, "comment": "..." }
-  ]
+"summary": "Overall review summary",
+"inline_comments": [
+{ "file": "path/to/file.ts", "line": 42, "comment": "..." }
+]
 }
+
 ```
 
 ---
@@ -820,28 +814,34 @@ Si les SHAs sont manquants, le système fallback automatiquement sur un commenta
 Si les commentaires inline ne s'affichent pas :
 
 1. **Vérifier les SHAs** : Consultez les logs pour voir si `baseSha`, `headSha`, `startSha` sont présents
-   ```
-   Posting inline comments: {
-     url: '...',
-     commentCount: 3,
-     baseSha: 'abc123...',
-     headSha: 'def456...'
-   }
-   ```
+```
+
+Posting inline comments: {
+url: '...',
+commentCount: 3,
+baseSha: 'abc123...',
+headSha: 'def456...'
+}
+
+```
 
 2. **Vérifier le format des commentaires** : En mode `inline` ou `hybrid`, vérifiez que l'IA génère bien les patterns attendus
 
 3. **Vérifier les erreurs GitLab API** : Les logs montrent maintenant les erreurs HTTP détaillées
-   ```
-   Failed to post inline comment on src/file.ts:42: HTTP 400 Bad Request
-   Response body: {"message":"Invalid position"}
-   ```
+```
+
+Failed to post inline comment on src/file.ts:42: HTTP 400 Bad Request
+Response body: {"message":"Invalid position"}
+
+```
 
 4. **Fallback automatique** : Si les SHAs manquent, le système poste automatiquement en mode `global`
-   ```
-   Missing commit SHAs, cannot post inline comments
-   Posting as global comment instead
-   ```
+```
+
+Missing commit SHAs, cannot post inline comments
+Posting as global comment instead
+
+````
 
 ---
 
@@ -851,15 +851,17 @@ Si les commentaires inline ne s'affichent pas :
 ```bash
 COMMENT_MODE=global
 AI_MODEL=claude-3-5-sonnet-20241022
-```
+````
 
 ### Configuration recommandée (production)
+
 ```bash
 COMMENT_MODE=hybrid
 AI_MODEL=claude-3-5-sonnet-20241022
 ```
 
 ### Configuration avancée (format strict)
+
 ```bash
 COMMENT_MODE=structured
 AI_MODEL=gpt-5
@@ -872,6 +874,7 @@ AI_MODEL=gpt-5
 Si vous utilisez déjà ce projet, **rien à faire** ! Le mode par défaut est `global`, qui correspond au comportement actuel.
 
 Pour activer les nouveaux modes :
+
 1. Ajoutez `COMMENT_MODE=hybrid` dans votre `.env`
 2. Redéployez l'application
 3. Testez avec une nouvelle MR

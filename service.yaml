@@ -8,9 +8,9 @@ spec:
   template:
     metadata:
       annotations:
-        autoscaling.knative.dev/minScale: '0'
-        autoscaling.knative.dev/maxScale: '10'
-        run.googleapis.com/cpu-throttling: 'true'
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "10"
+        run.googleapis.com/cpu-throttling: "true"
         run.googleapis.com/execution-environment: gen2
     spec:
       containerConcurrency: 80
@@ -31,7 +31,7 @@ spec:
               value: production
           resources:
             limits:
-              cpu: '1'
+              cpu: "1"
               memory: 512Mi
           startupProbe:
             httpGet:

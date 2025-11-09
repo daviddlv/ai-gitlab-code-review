@@ -47,6 +47,7 @@
     "fastify-tsconfig": "^2.0.0",
     "husky": "^9.0.11",
     "ngrok": "5.0.0-beta.2",
+    "prettier": "^3.6.2",
     "promptfoo": "^0.70.1",
     "ts-node": "^10.4.0",
     "ts-standard": "^12.0.2",

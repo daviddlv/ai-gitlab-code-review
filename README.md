@@ -37,6 +37,7 @@ cd ai-code-reviewer
 2. Create a `.env` file by copying the `.env.example` file and set the required environment variables:
 
 ### For Anthropic Claude:
+
 ```bash
 ANTHROPIC_API_KEY=<your Anthropic API key>
 GITLAB_TOKEN=<your GitLab API token>
@@ -45,6 +46,7 @@ AI_MODEL=claude-3-5-sonnet-20241022
 ```
 
 ### For OpenAI:
+
 ```bash
 OPENAI_API_KEY=<your OpenAI API key>
 GITLAB_TOKEN=<your GitLab API token>
@@ -53,6 +55,7 @@ AI_MODEL=gpt-4o
 ```
 
 ### For Google Gemini:
+
 ```bash
 GOOGLE_GENERATIVE_AI_API_KEY=<your Google API key>
 GITLAB_TOKEN=<your GitLab API token>
@@ -125,6 +128,7 @@ This project is configured for automatic deployment to Google Cloud Run via GitH
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed deployment instructions.
 
 Quick start:
+
 1. Set up a Google Cloud project
 2. Configure GitHub secrets
 3. Push to `main` or `feat/claude-ai` branch

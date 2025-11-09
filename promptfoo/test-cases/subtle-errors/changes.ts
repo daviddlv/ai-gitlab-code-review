@@ -1,4 +1,4 @@
-import type { BuildPromptParameters } from '../../../src/prompt/index.js'
+import type { BuildPromptParameters } from "../../../src/prompt/index.js";
 
 const diff = `
 diff --git a/subtle-errors/search.ts b/subtle-errors/searchEdited.ts
@@ -15,12 +15,12 @@ index 0ed552c..1a1446e 100644
          if (target > (nums[i] ?? 0)) {
              l = i + 1
 
-`
+`;
 
-const changes: BuildPromptParameters['changes'] = [
+const changes: BuildPromptParameters["changes"] = [
   {
-    diff
-  }
-]
+    diff,
+  },
+];
 
-export default changes
+export default changes;

@@ -1,7 +1,6 @@
-import type { BuildPromptParameters } from '../../../src/prompt/index.js'
+import type { BuildPromptParameters } from "../../../src/prompt/index.js";
 
-const fileContent =
-    `
+const fileContent = `
 // Binary search algorithm
 export function search(nums: number[], target: number): number {
     let l = 0, r = nums.length - 1
@@ -16,13 +15,13 @@ export function search(nums: number[], target: number): number {
     }
     return -1
 };
-`
+`;
 
-const oldFiles: BuildPromptParameters['oldFiles'] = [
+const oldFiles: BuildPromptParameters["oldFiles"] = [
   {
-    fileName: 'search.ts',
-    fileContent
-  }
-]
+    fileName: "search.ts",
+    fileContent,
+  },
+];
 
-export default oldFiles
+export default oldFiles;

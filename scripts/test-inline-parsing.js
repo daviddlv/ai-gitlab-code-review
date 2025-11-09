@@ -47,89 +47,96 @@ In \`src/api/routes.ts\` line 89: Race condition possible if token expires durin
   ]
 }
 \`\`\`
-`
-}
+`,
+};
 
 // Simple test function (mimics the parsing logic)
 function parseInlineComments(text) {
   const patterns = [
     /In\s+\`([^\`]+)\`\s+(?:line\s+)?(\d+):\s*(.+)/i,
     /\`?([^\`:]+\.\w+):(\d+)\`?:\s*(.+)/,
-    /-\s*\`([^\`:]+):(\d+)\`\s*-\s*(.+)/
-  ]
-  
-  const comments = []
-  const lines = text.split('\n')
-  
+    /-\s*\`([^\`:]+):(\d+)\`\s*-\s*(.+)/,
+  ];
+
+  const comments = [];
+  const lines = text.split("\n");
+
   for (const line of lines) {
     for (const pattern of patterns) {
-      const match = line.match(pattern)
+      const match = line.match(pattern);
       if (match) {
-        const [, file, lineNum, comment] = match
+        const [, file, lineNum, comment] = match;
         if (file && lineNum && comment) {
           comments.push({
             file: file.trim(),
             line: parseInt(lineNum, 10),
-            comment: comment.trim()
-          })
-          break
+            comment: comment.trim(),
+          });
+          break;
         }
       }
     }
   }
-  
-  return comments
+
+  return comments;
 }
 
 function parseStructuredResponse(text) {
   try {
-    const jsonMatch = text.match(/\`\`\`json\s*([\s\S]*?)\s*\`\`\`/) || 
-                      text.match(/\`\`\`\s*([\s\S]*?)\s*\`\`\`/)
-    
-    const jsonText = jsonMatch?.[1] ?? text
-    const parsed = JSON.parse(jsonText)
-    
+    const jsonMatch =
+      text.match(/\`\`\`json\s*([\s\S]*?)\s*\`\`\`/) ||
+      text.match(/\`\`\`\s*([\s\S]*?)\s*\`\`\`/);
+
+    const jsonText = jsonMatch?.[1] ?? text;
+    const parsed = JSON.parse(jsonText);
+
     return {
-      summary: parsed.summary || '',
-      inlineComments: parsed.inline_comments || []
-    }
+      summary: parsed.summary || "",
+      inlineComments: parsed.inline_comments || [],
+    };
   } catch (error) {
-    console.error('Failed to parse structured response:', error.message)
-    return { summary: '', inlineComments: [] }
+    console.error("Failed to parse structured response:", error.message);
+    return { summary: "", inlineComments: [] };
   }
 }
 
 // Run tests
-console.log('🧪 Testing inline comment parsing...\n')
+console.log("🧪 Testing inline comment parsing...\n");
 
-console.log('📍 Test 1: Inline mode')
-const inlineResult = parseInlineComments(testResponses.inline)
-console.log(`Found ${inlineResult.length} inline comments:`)
-inlineResult.forEach(c => console.log(`  - ${c.file}:${c.line} - ${c.comment}`))
-console.log()
+console.log("📍 Test 1: Inline mode");
+const inlineResult = parseInlineComments(testResponses.inline);
+console.log(`Found ${inlineResult.length} inline comments:`);
+inlineResult.forEach((c) =>
+  console.log(`  - ${c.file}:${c.line} - ${c.comment}`),
+);
+console.log();
 
-console.log('🎯 Test 2: Hybrid mode')
-const hybridResult = parseInlineComments(testResponses.hybrid)
-console.log(`Found ${hybridResult.length} inline comments:`)
-hybridResult.forEach(c => console.log(`  - ${c.file}:${c.line} - ${c.comment}`))
-console.log()
+console.log("🎯 Test 2: Hybrid mode");
+const hybridResult = parseInlineComments(testResponses.hybrid);
+console.log(`Found ${hybridResult.length} inline comments:`);
+hybridResult.forEach((c) =>
+  console.log(`  - ${c.file}:${c.line} - ${c.comment}`),
+);
+console.log();
 
-console.log('📊 Test 3: Structured mode')
-const structuredResult = parseStructuredResponse(testResponses.structured)
-console.log(`Summary: ${structuredResult.summary}`)
-console.log(`Found ${structuredResult.inlineComments.length} inline comments:`)
-structuredResult.inlineComments.forEach(c => console.log(`  - ${c.file}:${c.line} - ${c.comment}`))
-console.log()
+console.log("📊 Test 3: Structured mode");
+const structuredResult = parseStructuredResponse(testResponses.structured);
+console.log(`Summary: ${structuredResult.summary}`);
+console.log(`Found ${structuredResult.inlineComments.length} inline comments:`);
+structuredResult.inlineComments.forEach((c) =>
+  console.log(`  - ${c.file}:${c.line} - ${c.comment}`),
+);
+console.log();
 
 // Validation
-const allTestsPassed = 
+const allTestsPassed =
   inlineResult.length === 3 &&
   hybridResult.length === 2 &&
-  structuredResult.inlineComments.length === 2
+  structuredResult.inlineComments.length === 2;
 
 if (allTestsPassed) {
-  console.log('✅ All parsing tests passed!')
+  console.log("✅ All parsing tests passed!");
 } else {
-  console.log('❌ Some tests failed')
-  process.exit(1)
+  console.log("❌ Some tests failed");
+  process.exit(1);
 }

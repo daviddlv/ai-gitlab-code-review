@@ -1,7 +1,6 @@
-import type { BuildPromptParameters } from '../../../src/prompt/index.js'
+import type { BuildPromptParameters } from "../../../src/prompt/index.js";
 
-const fileContent =
-    `
+const fileContent = `
 // Binary search algorithm
 export function search(nums: number[], target: number): number {
     let l = 0, r = nums.length - 1
@@ -16,7 +15,7 @@ export function search(nums: number[], target: number): number {
     }
     return -1
 };
-`
+`;
 
 const fileContent2 = `
 import { search } from "./search.js"
@@ -24,17 +23,17 @@ import { search } from "./search.js"
 const dataset = new Array(100).fill(0).map((_, i) => i).sort(() => Math.random() - 0.5)
 
 export const whereIs13 = search(dataset, 13)
-`
+`;
 
-const oldFiles: BuildPromptParameters['oldFiles'] = [
+const oldFiles: BuildPromptParameters["oldFiles"] = [
   {
-    fileName: 'search.ts',
-    fileContent
+    fileName: "search.ts",
+    fileContent,
   },
   {
-    fileName: 'dataset.ts',
-    fileContent: fileContent2
-  }
-]
+    fileName: "dataset.ts",
+    fileContent: fileContent2,
+  },
+];
 
-export default oldFiles
+export default oldFiles;

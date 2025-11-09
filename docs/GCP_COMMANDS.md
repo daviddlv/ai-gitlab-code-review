@@ -3,6 +3,7 @@
 ## Initial Setup
 
 ### 1. Enable APIs
+
 ```bash
 gcloud services enable run.googleapis.com
 gcloud services enable containerregistry.googleapis.com
@@ -11,6 +12,7 @@ gcloud services enable secretmanager.googleapis.com
 ```
 
 ### 2. Create Artifact Registry
+
 ```bash
 export PROJECT_ID="your-project-id"
 export REGION="europe-west1"
@@ -23,6 +25,7 @@ gcloud artifacts repositories create $SERVICE_NAME \
 ```
 
 ### 3. Create Secrets
+
 ```bash
 # Anthropic API Key
 echo -n "your-anthropic-key" | gcloud secrets create ANTHROPIC_API_KEY \
@@ -43,11 +46,13 @@ echo -n "your-gitlab-token" | gcloud secrets create GITLAB_TOKEN \
 ## Deployment Commands
 
 ### Quick Deploy (using helper script)
+
 ```bash
 ./scripts/deploy-to-cloud-run.sh
 ```
 
 ### Manual Deploy
+
 ```bash
 # Build and push (force linux/amd64 for Cloud Run compatibility)
 IMAGE_NAME="$REGION-docker.pkg.dev/$PROJECT_ID/$SERVICE_NAME/$SERVICE_NAME:latest"
@@ -68,6 +73,7 @@ gcloud run deploy $SERVICE_NAME \
 ```
 
 ### Deploy with Cloud Build
+
 ```bash
 gcloud builds submit --config=cloudbuild.yaml
 ```
@@ -75,11 +81,13 @@ gcloud builds submit --config=cloudbuild.yaml
 ## Service Management
 
 ### View Service Details
+
 ```bash
 gcloud run services describe $SERVICE_NAME --region $REGION
 ```
 
 ### Get Service URL
+
 ```bash
 gcloud run services describe $SERVICE_NAME \
   --region $REGION \
@@ -87,6 +95,7 @@ gcloud run services describe $SERVICE_NAME \
 ```
 
 ### Update Service (without rebuilding)
+
 ```bash
 gcloud run services update $SERVICE_NAME \
   --region $REGION \
@@ -94,6 +103,7 @@ gcloud run services update $SERVICE_NAME \
 ```
 
 ### Update Traffic Split (for canary deployments)
+
 ```bash
 gcloud run services update-traffic $SERVICE_NAME \
   --region $REGION \
@@ -101,6 +111,7 @@ gcloud run services update-traffic $SERVICE_NAME \
 ```
 
 ### Delete Service
+
 ```bash
 gcloud run services delete $SERVICE_NAME --region $REGION
 ```
@@ -108,11 +119,13 @@ gcloud run services delete $SERVICE_NAME --region $REGION
 ## Logs and Monitoring
 
 ### Stream Logs
+
 ```bash
 gcloud run services logs tail $SERVICE_NAME --region $REGION
 ```
 
 ### Read Recent Logs
+
 ```bash
 gcloud run services logs read $SERVICE_NAME \
   --region $REGION \
@@ -120,6 +133,7 @@ gcloud run services logs read $SERVICE_NAME \
 ```
 
 ### Filter Logs by Severity
+
 ```bash
 gcloud run services logs read $SERVICE_NAME \
   --region $REGION \
@@ -127,6 +141,7 @@ gcloud run services logs read $SERVICE_NAME \
 ```
 
 ### View Metrics in Console
+
 ```bash
 # Open in browser
 open "https://console.cloud.google.com/run/detail/$REGION/$SERVICE_NAME/metrics?project=$PROJECT_ID"
@@ -135,21 +150,25 @@ open "https://console.cloud.google.com/run/detail/$REGION/$SERVICE_NAME/metrics?
 ## Secret Management
 
 ### Update a Secret
+
 ```bash
 echo -n "new-value" | gcloud secrets versions add ANTHROPIC_API_KEY --data-file=-
 ```
 
 ### List Secret Versions
+
 ```bash
 gcloud secrets versions list ANTHROPIC_API_KEY
 ```
 
 ### Access Secret Value
+
 ```bash
 gcloud secrets versions access latest --secret="ANTHROPIC_API_KEY"
 ```
 
 ### Delete Old Secret Versions
+
 ```bash
 gcloud secrets versions destroy 1 --secret="ANTHROPIC_API_KEY"
 ```
@@ -157,6 +176,7 @@ gcloud secrets versions destroy 1 --secret="ANTHROPIC_API_KEY"
 ## Scaling and Performance
 
 ### Set Min/Max Instances
+
 ```bash
 gcloud run services update $SERVICE_NAME \
   --region $REGION \
@@ -165,6 +185,7 @@ gcloud run services update $SERVICE_NAME \
 ```
 
 ### Set CPU and Memory
+
 ```bash
 gcloud run services update $SERVICE_NAME \
   --region $REGION \
@@ -173,6 +194,7 @@ gcloud run services update $SERVICE_NAME \
 ```
 
 ### Set Timeout
+
 ```bash
 gcloud run services update $SERVICE_NAME \
   --region $REGION \
@@ -180,6 +202,7 @@ gcloud run services update $SERVICE_NAME \
 ```
 
 ### Set Concurrency
+
 ```bash
 gcloud run services update $SERVICE_NAME \
   --region $REGION \
@@ -189,6 +212,7 @@ gcloud run services update $SERVICE_NAME \
 ## Testing
 
 ### Test Locally with Docker
+
 ```bash
 # Build for the right platform
 docker buildx build --platform linux/amd64 -t test-image .
@@ -203,12 +227,14 @@ docker run -p 3000:3000 \
 ```
 
 ### Test Health Endpoint
+
 ```bash
 SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region $REGION --format='value(status.url)')
 curl $SERVICE_URL/health
 ```
 
 ### Test Webhook Endpoint
+
 ```bash
 curl -X POST $SERVICE_URL/gitlab-webhook \
   -H "Content-Type: application/json" \
@@ -219,11 +245,13 @@ curl -X POST $SERVICE_URL/gitlab-webhook \
 ## Troubleshooting
 
 ### Check Service Status
+
 ```bash
 gcloud run services describe $SERVICE_NAME --region $REGION
 ```
 
 ### View Environment Variables
+
 ```bash
 gcloud run services describe $SERVICE_NAME \
   --region $REGION \
@@ -231,11 +259,13 @@ gcloud run services describe $SERVICE_NAME \
 ```
 
 ### Check IAM Permissions
+
 ```bash
 gcloud run services get-iam-policy $SERVICE_NAME --region $REGION
 ```
 
 ### Rollback to Previous Revision
+
 ```bash
 # List revisions
 gcloud run revisions list --service $SERVICE_NAME --region $REGION
@@ -249,6 +279,7 @@ gcloud run services update-traffic $SERVICE_NAME \
 ## Cost Optimization
 
 ### Set Scale-to-Zero
+
 ```bash
 gcloud run services update $SERVICE_NAME \
   --region $REGION \
@@ -256,6 +287,7 @@ gcloud run services update $SERVICE_NAME \
 ```
 
 ### Use CPU Allocation (only allocate CPU during requests)
+
 ```bash
 gcloud run services update $SERVICE_NAME \
   --region $REGION \
@@ -263,6 +295,7 @@ gcloud run services update $SERVICE_NAME \
 ```
 
 ### Check Current Costs
+
 ```bash
 # View in console
 open "https://console.cloud.google.com/billing/reports?project=$PROJECT_ID"
@@ -271,12 +304,14 @@ open "https://console.cloud.google.com/billing/reports?project=$PROJECT_ID"
 ## CI/CD Integration
 
 ### Trigger GitHub Actions Deploy
+
 ```bash
 # Push to main or feat/claude-ai branch
 git push origin main
 ```
 
 ### Manual GitHub Actions Trigger
+
 Go to: https://github.com/YOUR_USERNAME/ai-gitlab-code-review/actions
 
 ## Useful Links

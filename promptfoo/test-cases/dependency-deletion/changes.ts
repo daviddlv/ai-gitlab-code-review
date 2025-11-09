@@ -1,4 +1,4 @@
-import type { BuildPromptParameters } from '../../../src/prompt/index.js'
+import type { BuildPromptParameters } from "../../../src/prompt/index.js";
 
 const diff = `
 diff --git a/file-deletion/search.ts b/file-deletion/search.ts
@@ -22,7 +22,7 @@ index 0ed552c..0000000
 -    return -1
 -};
 
-`
+`;
 
 const diff2 = `
 diff --git a/dependency-deletion/dataset.ts b/dependency-deletion/datasetEdited.ts
@@ -36,15 +36,15 @@ index 7337bd8..8a117cb 100644
 +const dataset = new Array(1000).fill(0).map((_, i) => i).sort(() => Math.random() - 0.5)
  
  export const whereIs13 = search(dataset, 13)
-`
+`;
 
-const changes: BuildPromptParameters['changes'] = [
+const changes: BuildPromptParameters["changes"] = [
   {
-    diff
+    diff,
   },
   {
-    diff: diff2
-  }
-]
+    diff: diff2,
+  },
+];
 
-export default changes
+export default changes;

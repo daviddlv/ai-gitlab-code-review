@@ -1,26 +1,29 @@
-import { buildPrompt } from '../../prompt/index.js'
-import { GitLabError, type CommentPayload, type GitLabWebhookHandler, type SupportedWebhookEvent, type CommentMode } from './types.js'
-import { fetchBranchDiff, fetchPreEditFiles } from './services.js'
-import type { WebhookMergeRequestEventSchema } from '@gitbeaker/rest'
-import { getProviderFromModel, type AIModel } from '../../config/index.js'
-import { Logger } from '../../utils/logger.js'
+import { buildPrompt } from "../../prompt/index.js";
+import {
+  GitLabError,
+  type CommentPayload,
+  type GitLabWebhookHandler,
+  type SupportedWebhookEvent,
+  type CommentMode,
+} from "./types.js";
+import { fetchBranchDiff, fetchPreEditFiles } from "./services.js";
+import type { WebhookMergeRequestEventSchema } from "@gitbeaker/rest";
+import { getProviderFromModel, type AIModel } from "../../config/index.js";
+import type { FastifyBaseLogger } from "fastify";
 
-const supportedMergeRequestActions: Array<WebhookMergeRequestEventSchema['object_attributes']['action']> = [
-  'open',
-  'update',
-  'reopen'
-] as const
+const supportedMergeRequestActions: Array<
+  WebhookMergeRequestEventSchema["object_attributes"]["action"]
+> = ["open", "update", "reopen"] as const;
 
 /**
  * Handle GitLab merge request webhook events
  */
-export const handleMergeRequestHook: GitLabWebhookHandler<WebhookMergeRequestEventSchema> = async (
-  logger: Logger,
+export const handleMergeRequestHook: GitLabWebhookHandler<
+  WebhookMergeRequestEventSchema
+> = async (
+  logger: FastifyBaseLogger,
   mergeRequestEvent: WebhookMergeRequestEventSchema,
-  {
-    gitlabUrl,
-    headers
-  }
+  { gitlabUrl, headers },
 ) => {
   const {
     object_attributes: {
@@ -29,164 +32,163 @@ export const handleMergeRequestHook: GitLabWebhookHandler<WebhookMergeRequestEve
       target_branch: targetBranch,
       iid: mergeRequestIid,
       action,
-      last_commit: lastCommit
-    }
-  } = mergeRequestEvent
+      last_commit: lastCommit,
+    },
+  } = mergeRequestEvent;
 
-  logger.info('Received merge request webhook', {
+  logger.info("Received merge request webhook", {
     action,
     mergeRequestIid,
     targetProjectId,
     sourceBranch,
-    targetBranch
-  })
+    targetBranch,
+  });
 
-  logger.debug('Full MR webhook payload', { payload: mergeRequestEvent })
+  logger.debug("Full MR webhook payload", { payload: mergeRequestEvent });
 
   // Check if action is supported
   if (!supportedMergeRequestActions.includes(action)) {
-    logger.info('MR action not supported, skipping', {
+    logger.info("MR action not supported, skipping", {
       action,
-      supportedActions: supportedMergeRequestActions
-    })
-    return
+      supportedActions: supportedMergeRequestActions,
+    });
+    return;
   }
 
-  const gitLabBaseUrl = new URL(`${gitlabUrl}/projects/${targetProjectId}`)
+  const gitLabBaseUrl = new URL(`${gitlabUrl}/projects/${targetProjectId}`);
 
   // Step 1: Fetch branch diff
-  logger.info('Step 1/4: Fetching branch diff', {
+  logger.info("Step 1/4: Fetching branch diff", {
     sourceBranch,
-    targetBranch
-  })
+    targetBranch,
+  });
 
   const changes = await fetchBranchDiff(logger, {
     gitLabBaseUrl,
     sourceBranch,
     targetBranch,
-    headers
-  })
+    headers,
+  });
 
   if (changes instanceof Error) {
-    logger.error('Failed to fetch branch diff', changes, {
+    logger.error("Failed to fetch branch diff", changes, {
       sourceBranch,
-      targetBranch
-    })
-    return changes
+      targetBranch,
+    });
+    return changes;
   }
 
-  if ((changes.diffs == null) || (changes.diffs.length === 0)) {
-    logger.warn('No changes found in merge request', {
+  if (changes.diffs == null || changes.diffs.length === 0) {
+    logger.warn("No changes found in merge request", {
       mergeRequestIid,
       sourceBranch,
-      targetBranch
-    })
+      targetBranch,
+    });
     return new GitLabError({
-      name: 'EMPTY_DIFF',
-      message: 'No changes found in the merge request',
-      statusCode: 404
-    })
+      name: "EMPTY_DIFF",
+      message: "No changes found in the merge request",
+      statusCode: 404,
+    });
   }
 
-  logger.info('Branch diff fetched successfully', {
+  logger.info("Branch diff fetched successfully", {
     diffCount: changes.diffs.length,
-    commitCount: changes.commits?.length ?? 0
-  })
+    commitCount: changes.commits?.length ?? 0,
+  });
 
-  const changesOldPaths = changes.diffs.map(diff => diff.old_path)
+  const changesOldPaths = changes.diffs.map((diff) => diff.old_path);
 
   // Step 2: Fetch old file versions
-  logger.info('Step 2/4: Fetching old file versions', {
-    fileCount: changesOldPaths.length
-  })
+  logger.info("Step 2/4: Fetching old file versions", {
+    fileCount: changesOldPaths.length,
+  });
 
   const oldFiles = await fetchPreEditFiles(logger, {
     gitLabBaseUrl,
     changesOldPaths,
-    headers
-  })
+    headers,
+  });
 
   if (oldFiles instanceof Error) {
-    logger.error('Failed to fetch old files', oldFiles)
-    return oldFiles
+    logger.error("Failed to fetch old files", oldFiles);
+    return oldFiles;
   }
 
-  logger.info('Old files fetched successfully', {
-    fileCount: oldFiles.length
-  })
+  logger.info("Old files fetched successfully", {
+    fileCount: oldFiles.length,
+  });
 
   // Step 3: Determine AI provider and build prompt
-  logger.info('Step 3/4: Building AI prompt')
+  logger.info("Step 3/4: Building AI prompt");
 
-  const aiModel = process.env.AI_MODEL as AIModel
-  const provider = getProviderFromModel(aiModel)
-  const commentMode = (process.env.COMMENT_MODE || 'global') as CommentMode
+  const aiModel = process.env.AI_MODEL as AIModel;
+  const provider = getProviderFromModel(aiModel);
+  const commentMode = (process.env.COMMENT_MODE || "global") as CommentMode;
 
-  logger.info('AI configuration', {
+  logger.info("AI configuration", {
     provider,
     model: aiModel,
-    commentMode
-  })
+    commentMode,
+  });
 
-  const messages = buildPrompt({ oldFiles, changes: changes.diffs ?? [], commentMode })
+  const messages = buildPrompt({
+    oldFiles,
+    changes: changes.diffs ?? [],
+    commentMode,
+  });
 
-  logger.info('Prompt built successfully', {
+  logger.info("Prompt built successfully", {
     messageCount: messages.length,
-    commentMode
-  })
+    commentMode,
+  });
 
-  logger.debug('Prompt messages', { messages })
+  logger.debug("Prompt messages", { messages });
 
   // Step 4: Extract commit SHAs
-  logger.info('Step 4/4: Extracting commit SHAs for inline comments')
+  logger.info("Step 4/4: Extracting commit SHAs for inline comments");
 
-  const mrAttrs = mergeRequestEvent.object_attributes as any
+  const mrAttrs = mergeRequestEvent.object_attributes as any;
 
   // Extract SHAs from different possible locations in the webhook payload
-  const headSha = (
-    lastCommit?.id || 
+  const headSha = (lastCommit?.id ||
     mrAttrs?.last_commit?.id ||
     (changes as any).commit?.id ||
-    mrAttrs?.source_branch_sha
-  ) as string | undefined
+    mrAttrs?.source_branch_sha) as string | undefined;
 
-  const baseSha = (
-    (changes as any).commits?.[0]?.parent_ids?.[0] ||
+  const baseSha = ((changes as any).commits?.[0]?.parent_ids?.[0] ||
     mrAttrs?.target_branch_sha ||
     mrAttrs?.diff_refs?.base_sha ||
-    headSha
-  ) as string | undefined
+    headSha) as string | undefined;
 
-  const startSha = (
-    mrAttrs?.diff_refs?.start_sha ||
-    baseSha
-  ) as string | undefined
+  const startSha = (mrAttrs?.diff_refs?.start_sha || baseSha) as
+    | string
+    | undefined;
 
-  logger.info('Commit SHAs extracted', {
+  logger.info("Commit SHAs extracted", {
     headSha,
     baseSha,
     startSha,
     hasLastCommit: !!lastCommit,
-    hasDiffRefs: !!mrAttrs?.diff_refs
-  })
+    hasDiffRefs: !!mrAttrs?.diff_refs,
+  });
 
-  logger.debug('Full diff_refs from webhook', {
-    diff_refs: mrAttrs?.diff_refs
-  })
+  logger.debug("Full diff_refs from webhook", {
+    diff_refs: mrAttrs?.diff_refs,
+  });
 
   if (!baseSha || !headSha || !startSha) {
-    logger.warn('Some commit SHAs are missing, inline comments may not work', {
+    logger.warn("Some commit SHAs are missing, inline comments may not work", {
       hasBaseSha: !!baseSha,
       hasHeadSha: !!headSha,
-      hasStartSha: !!startSha
-    })
+      hasStartSha: !!startSha,
+    });
   }
 
-  logger.info('MR webhook processing completed successfully', {
+  logger.info("MR webhook processing completed successfully", {
     mergeRequestIid,
     provider,
-    model: aiModel
-  })
+    model: aiModel,
+  });
 
   return {
     mergeRequestIid,
@@ -196,13 +198,16 @@ export const handleMergeRequestHook: GitLabWebhookHandler<WebhookMergeRequestEve
     modelName: aiModel,
     baseSha,
     headSha,
-    startSha: baseSha
-  }
-}
+    startSha: baseSha,
+  };
+};
 
-export const buildCommentPayload = <T extends SupportedWebhookEvent>(answer: string, eventType: T['object_kind']): CommentPayload => {
-  if (eventType === 'merge_request') {
-    return { body: answer } as CommentPayload
+export const buildCommentPayload = <T extends SupportedWebhookEvent>(
+  answer: string,
+  eventType: T["object_kind"],
+): CommentPayload => {
+  if (eventType === "merge_request") {
+    return { body: answer } as CommentPayload;
   }
-  return { note: answer }
-}
+  return { note: answer };
+};

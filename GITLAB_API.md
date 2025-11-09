@@ -5,14 +5,17 @@ Ce document détaille les endpoints GitLab utilisés par l'application et leurs 
 ## 📝 Commentaire global (Notes API)
 
 ### Endpoint
+
 ```
 POST /projects/:id/merge_requests/:merge_request_iid/notes
 ```
 
 ### Documentation officielle
+
 https://docs.gitlab.com/ee/api/notes.html#create-new-merge-request-note
 
 ### Paramètres
+
 ```json
 {
   "body": "Le texte du commentaire en markdown"
@@ -20,6 +23,7 @@ https://docs.gitlab.com/ee/api/notes.html#create-new-merge-request-note
 ```
 
 ### Exemple de requête
+
 ```bash
 curl --request POST \
   --header "PRIVATE-TOKEN: <token>" \
@@ -31,6 +35,7 @@ curl --request POST \
 ```
 
 ### Réponse (200 OK)
+
 ```json
 {
   "id": 301,
@@ -45,6 +50,7 @@ curl --request POST \
 ```
 
 ### Cas d'usage
+
 - Mode `global` : Unique commentaire avec toute la review
 - Mode `hybrid` : Résumé général après les commentaires inline
 - Mode `structured` : Résumé extrait du JSON
@@ -54,20 +60,23 @@ curl --request POST \
 ## 💬 Commentaire inline (Discussions API)
 
 ### Endpoint
+
 ```
 POST /projects/:id/merge_requests/:merge_request_iid/discussions
 ```
 
 ### Documentation officielle
+
 https://docs.gitlab.com/ee/api/discussions.html#create-new-merge-request-thread
 
 ### Paramètres
+
 ```json
 {
   "body": "Le texte du commentaire",
   "position": {
     "base_sha": "sha-du-commit-base",
-    "head_sha": "sha-du-commit-head", 
+    "head_sha": "sha-du-commit-head",
     "start_sha": "sha-du-commit-start",
     "position_type": "text",
     "new_path": "chemin/vers/fichier.ts",
@@ -79,6 +88,7 @@ https://docs.gitlab.com/ee/api/discussions.html#create-new-merge-request-thread
 ### Paramètres de position
 
 #### Pour un commentaire sur une ligne ajoutée/modifiée
+
 ```json
 {
   "position": {
@@ -93,6 +103,7 @@ https://docs.gitlab.com/ee/api/discussions.html#create-new-merge-request-thread
 ```
 
 #### Pour un commentaire sur une ligne supprimée
+
 ```json
 {
   "position": {
@@ -107,6 +118,7 @@ https://docs.gitlab.com/ee/api/discussions.html#create-new-merge-request-thread
 ```
 
 ### Exemple de requête
+
 ```bash
 curl --request POST \
   --header "PRIVATE-TOKEN: <token>" \
@@ -126,6 +138,7 @@ curl --request POST \
 ```
 
 ### Réponse (201 Created)
+
 ```json
 {
   "id": "abc123",
@@ -151,6 +164,7 @@ curl --request POST \
 ```
 
 ### Cas d'usage
+
 - Mode `inline` : Tous les commentaires sont postés via cet endpoint
 - Mode `hybrid` : Commentaires spécifiques sur le code
 - Mode `structured` : Commentaires extraits du JSON
@@ -160,25 +174,30 @@ curl --request POST \
 ## 🔍 Récupération du diff (Compare API)
 
 ### Endpoint
+
 ```
 GET /projects/:id/repository/compare?from=:branch1&to=:branch2&unidiff=true
 ```
 
 ### Documentation officielle
+
 https://docs.gitlab.com/ee/api/repositories.html#compare-branches-tags-or-commits
 
 ### Paramètres
+
 - `from` : Branche de base (target)
 - `to` : Branche source
 - `unidiff` : Format unifié du diff (true)
 
 ### Exemple de requête
+
 ```bash
 curl --header "PRIVATE-TOKEN: <token>" \
   "https://gitlab.com/api/v4/projects/12345/repository/compare?from=main&to=feature-branch&unidiff=true"
 ```
 
 ### Réponse (200 OK)
+
 ```json
 {
   "commit": {
@@ -205,7 +224,9 @@ curl --header "PRIVATE-TOKEN: <token>" \
 ```
 
 ### Usage dans l'application
+
 Cette API est utilisée pour :
+
 1. Récupérer les modifications de la MR
 2. Extraire les commits SHAs (pour les commentaires inline)
 3. Générer le contexte pour l'IA
@@ -215,24 +236,29 @@ Cette API est utilisée pour :
 ## 🗂️ Récupération du fichier avant modification (File API)
 
 ### Endpoint
+
 ```
 GET /projects/:id/repository/files/:file_path/raw?ref=:branch
 ```
 
 ### Documentation officielle
+
 https://docs.gitlab.com/ee/api/repository_files.html#get-raw-file-from-repository
 
 ### Paramètres
+
 - `file_path` : Chemin du fichier (URL encoded)
 - `ref` : Branche ou commit SHA
 
 ### Exemple de requête
+
 ```bash
 curl --header "PRIVATE-TOKEN: <token>" \
   "https://gitlab.com/api/v4/projects/12345/repository/files/src%2Fauth%2Fmiddleware.ts/raw?ref=main"
 ```
 
 ### Réponse (200 OK)
+
 ```typescript
 // Contenu brut du fichier
 export function authenticate(req, res, next) {
@@ -242,6 +268,7 @@ export function authenticate(req, res, next) {
 ```
 
 ### Usage dans l'application
+
 Utilisé pour fournir le contexte complet du fichier à l'IA avant les modifications.
 
 ---
@@ -249,14 +276,17 @@ Utilisé pour fournir le contexte complet du fichier à l'IA avant les modificat
 ## ✅ Approbation de la MR (Approve API)
 
 ### Endpoint
+
 ```
 POST /projects/:id/merge_requests/:merge_request_iid/approve
 ```
 
 ### Documentation officielle
+
 https://docs.gitlab.com/ee/api/merge_request_approvals.html#approve-merge-request
 
 ### Exemple de requête
+
 ```bash
 curl --request POST \
   --header "PRIVATE-TOKEN: <token>" \
@@ -264,6 +294,7 @@ curl --request POST \
 ```
 
 ### Réponse (200 OK)
+
 ```json
 {
   "id": 42,
@@ -282,6 +313,7 @@ curl --request POST \
 ```
 
 ### Usage dans l'application
+
 Utilisé pour approuver automatiquement la MR si l'IA ne détecte aucun problème critique.
 
 ---
@@ -291,11 +323,13 @@ Utilisé pour approuver automatiquement la MR si l'IA ne détecte aucun problèm
 Toutes les requêtes utilisent un **Personal Access Token** avec le scope `api`.
 
 ### Header requis
+
 ```http
 PRIVATE-TOKEN: <votre-token>
 ```
 
 ### Création du token
+
 1. GitLab → Settings → Access Tokens
 2. Name: `AI Code Review Bot`
 3. Scopes: `api`, `read_api`, `write_repository`
@@ -306,6 +340,7 @@ PRIVATE-TOKEN: <votre-token>
 ## 🚨 Codes d'erreur courants
 
 ### 400 Bad Request
+
 - Position de diff invalide
 - SHAs de commits incorrects
 - Ligne en dehors du diff
@@ -313,18 +348,21 @@ PRIVATE-TOKEN: <votre-token>
 **Solution** : Vérifier que les SHAs correspondent au diff actuel
 
 ### 401 Unauthorized
+
 - Token invalide ou expiré
 - Token manquant
 
 **Solution** : Vérifier la variable `GITLAB_TOKEN`
 
 ### 403 Forbidden
+
 - Token sans les permissions nécessaires
 - Bot n'a pas accès au projet
 
 **Solution** : Ajouter le bot comme membre du projet
 
 ### 404 Not Found
+
 - Projet inexistant
 - MR inexistante
 - Fichier non trouvé
@@ -332,6 +370,7 @@ PRIVATE-TOKEN: <votre-token>
 **Solution** : Vérifier les IDs du projet et de la MR
 
 ### 422 Unprocessable Entity
+
 - Position de diff obsolète
 - Ligne déjà modifiée
 
@@ -342,14 +381,17 @@ PRIVATE-TOKEN: <votre-token>
 ## 📊 Limites et quotas
 
 ### Rate limiting
+
 - GitLab.com : 300 requêtes/minute par IP
 - Self-hosted : Configurable
 
 ### Taille des commentaires
+
 - Maximum : 1 000 000 caractères
 - Recommandé : < 10 000 caractères
 
 ### Nombre de discussions
+
 - Pas de limite officielle
 - Recommandé : < 100 commentaires inline par MR
 
@@ -358,30 +400,33 @@ PRIVATE-TOKEN: <votre-token>
 ## 🔧 Debugging
 
 ### Activer les logs détaillés
+
 ```typescript
-console.log('Posting inline comment:', {
+console.log("Posting inline comment:", {
   url: discussionsUrl.toString(),
   mergeRequestIid,
   baseSha,
   headSha,
   file: comment.file,
-  line: comment.line
-})
+  line: comment.line,
+});
 ```
 
 ### Vérifier la réponse d'erreur
+
 ```typescript
 if (!response.ok) {
-  const errorBody = await response.text()
-  console.error('GitLab API error:', {
+  const errorBody = await response.text();
+  console.error("GitLab API error:", {
     status: response.status,
     statusText: response.statusText,
-    body: errorBody
-  })
+    body: errorBody,
+  });
 }
 ```
 
 ### Tester avec curl
+
 Utilisez les exemples ci-dessus pour tester manuellement les endpoints.
 
 ---

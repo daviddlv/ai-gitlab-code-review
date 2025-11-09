@@ -7,6 +7,7 @@ Toutes les modifications notables du projet seront documentées dans ce fichier.
 ### 🎉 Nouvelles fonctionnalités majeures
 
 #### Modes de commentaires simplifiés
+
 Ajout de 2 modes pour poster les reviews IA sur GitLab :
 
 - **`global`** (défaut) : Commentaire unique avec toute la review
@@ -15,12 +16,14 @@ Ajout de 2 modes pour poster les reviews IA sur GitLab :
 Configuration via variable d'environnement `COMMENT_MODE`.
 
 #### Commentaires inline sur le code
+
 - Utilisation de l'API GitLab Discussions pour créer des threads sur des lignes spécifiques
 - Parsing JSON simple et fiable avec `JSON.parse()`
 - Support des commentaires sur lignes ajoutées/modifiées/supprimées
 - Extraction automatique des commits SHAs depuis le webhook
 
 #### Format JSON structuré
+
 - L'IA génère un JSON avec deux champs : `summary` et `inline_comments`
 - Parsing simple et fiable (pas de regex complexes)
 - Fallback automatique sur commentaire global si JSON invalide
@@ -29,11 +32,13 @@ Configuration via variable d'environnement `COMMENT_MODE`.
 ### 📝 Améliorations
 
 #### Prompt système enrichi
+
 - Instructions strictes pour générer un JSON valide
 - Format clair avec exemples pour l'IA
 - Règles explicites (pas de trailing commas, quotes correctes, etc.)
 
 #### Gestion d'erreurs améliorée
+
 - Messages d'erreur détaillés pour les API GitLab
 - HTTP status codes et response bodies dans les logs
 - Debug logs pour les requêtes API
@@ -43,6 +48,7 @@ Configuration via variable d'environnement `COMMENT_MODE`.
   - Erreur de parsing
 
 #### Logs GCP améliorés
+
 - Ajout du champ `severity` pour GCP Cloud Logging
 - Utilisation correcte de la syntaxe `{ err }` pour Pino
 - Capture complète des stack traces
@@ -57,6 +63,7 @@ Nouveaux fichiers de documentation :
 - **ARCHITECTURE.md** : Diagrammes de flux et architecture technique
 
 Documentation mise à jour :
+
 - README.md : Mention des 2 modes
 - .env.sample : Variable COMMENT_MODE avec explications
 - Exemples d'utilisation pour chaque mode
@@ -64,40 +71,43 @@ Documentation mise à jour :
 ### 🔧 Technique
 
 #### Nouveaux types TypeScript
+
 ```typescript
 // Types pour commentaires inline
 interface InlineComment {
-  file: string
-  line: number
-  comment: string
-  isOldFile?: boolean
+  file: string;
+  line: number;
+  comment: string;
+  isOldFile?: boolean;
 }
 
 interface InlineCommentPosition {
-  base_sha: string
-  head_sha: string
-  start_sha: string
-  position_type: 'text'
-  new_path: string
-  new_line: number
-  old_path?: string
-  old_line?: number
+  base_sha: string;
+  head_sha: string;
+  start_sha: string;
+  position_type: "text";
+  new_path: string;
+  new_line: number;
+  old_path?: string;
+  old_line?: number;
 }
 
 interface StructuredReview {
-  summary: string
-  inline_comments: InlineComment[]
+  summary: string;
+  inline_comments: InlineComment[];
 }
 
-type CommentMode = 'global' | 'structured'
+type CommentMode = "global" | "structured";
 ```
 
 #### Nouvelles fonctions
+
 - `postInlineComments()` : Poster des commentaires inline via API Discussions
 - `parseStructuredResponse()` : Parser JSON structuré avec fallback
 - Prompt adaptatif selon le mode dans `buildPrompt()`
 
 #### Extraction des commits SHAs
+
 - Récupération automatique depuis `webhook.last_commit.id`
 - Extraction depuis `changes.commit.id` et `changes.commits[0].parent_ids[0]`
 - Propagation des SHAs dans `WebhookHandlerResult`
@@ -127,6 +137,7 @@ La version initiale supportait 4 modes (`global`, `inline`, `hybrid`, `structure
 Nous avons simplifié à **2 modes seulement** pour ces raisons :
 
 **Pourquoi ?**
+
 1. **Parsing JSON > Parsing regex** : `JSON.parse()` est simple, rapide, et fiable
 2. **Un format structuré suffit** : Peut faire inline seul, résumé seul, ou les deux
 3. **Moins de code = moins de bugs** : Maintenance simplifiée
@@ -156,12 +167,12 @@ Nous avons simplifié à **2 modes seulement** pour ces raisons :
 Aucune action requise ! La version 2.0 est 100% rétrocompatible.
 
 Pour activer le mode structuré :
+
 1. Ajoutez `COMMENT_MODE=structured` dans votre `.env`
 2. Redéployez l'application
 3. Testez avec une nouvelle MR
 
 Le mode par défaut reste `global` (comportement identique à la v1.x).
-
 
 - **`global`** (défaut) : Commentaire unique avec toute la review
 - **`inline`** : Commentaires directement sur les lignes de code concernées
@@ -171,13 +182,15 @@ Le mode par défaut reste `global` (comportement identique à la v1.x).
 Configuration via variable d'environnement `COMMENT_MODE`.
 
 #### Commentaires inline sur le code
+
 - Utilisation de l'API GitLab Discussions pour créer des threads sur des lignes spécifiques
 - Parsing automatique des patterns dans les réponses IA
 - Support des commentaires sur lignes ajoutées/modifiées/supprimées
 - Extraction automatique des commits SHAs depuis le webhook
 
 #### Parsing intelligent des réponses IA
-- Détection de patterns multiples : 
+
+- Détection de patterns multiples :
   - `In \`file.ts\` line 42: comment`
   - `file.ts:42: comment`
   - `- \`file.ts:42\` - comment`
@@ -187,17 +200,20 @@ Configuration via variable d'environnement `COMMENT_MODE`.
 ### 📝 Améliorations
 
 #### Prompt système enrichi
+
 - Instructions adaptées selon le mode sélectionné
 - Format de sortie clair pour l'IA selon le mode
 - Meilleure séparation entre observations générales et problèmes spécifiques
 
 #### Gestion d'erreurs améliorée
+
 - Messages d'erreur détaillés pour les API GitLab
 - HTTP status codes et response bodies dans les logs
 - Debug logs pour les requêtes API
 - Fallback automatique vers commentaire global si SHAs manquants
 
 #### Logs GCP améliorés
+
 - Ajout du champ `severity` pour GCP Cloud Logging
 - Utilisation correcte de la syntaxe `{ err }` pour Pino
 - Capture complète des stack traces
@@ -212,6 +228,7 @@ Nouveaux fichiers de documentation :
 - **scripts/test-inline-parsing.js** : Script de test pour le parsing
 
 Documentation mise à jour :
+
 - README.md : Mention des modes de commentaires
 - .env.sample : Variable COMMENT_MODE avec explications
 - Exemples d'utilisation pour chaque mode
@@ -219,41 +236,44 @@ Documentation mise à jour :
 ### 🔧 Technique
 
 #### Nouveaux types TypeScript
+
 ```typescript
 // Types pour commentaires inline
 interface InlineComment {
-  file: string
-  line: number
-  comment: string
-  isOldFile?: boolean
+  file: string;
+  line: number;
+  comment: string;
+  isOldFile?: boolean;
 }
 
 interface InlineCommentPosition {
-  base_sha: string
-  head_sha: string
-  start_sha: string
-  position_type: 'text'
-  new_path: string
-  new_line: number
-  old_path?: string
-  old_line?: number
+  base_sha: string;
+  head_sha: string;
+  start_sha: string;
+  position_type: "text";
+  new_path: string;
+  new_line: number;
+  old_path?: string;
+  old_line?: number;
 }
 
 interface StructuredReview {
-  summary: string
-  inline_comments: InlineComment[]
+  summary: string;
+  inline_comments: InlineComment[];
 }
 
-type CommentMode = 'global' | 'inline' | 'hybrid' | 'structured'
+type CommentMode = "global" | "inline" | "hybrid" | "structured";
 ```
 
 #### Nouvelles fonctions
+
 - `postInlineComments()` : Poster des commentaires inline via API Discussions
 - `parseInlineComments()` : Extraire commentaires inline des patterns texte
 - `parseStructuredResponse()` : Parser JSON structuré avec fallback
 - Prompt adaptatif selon le mode dans `buildPrompt()`
 
 #### Extraction des commits SHAs
+
 - Récupération automatique depuis `webhook.last_commit.id`
 - Extraction depuis `changes.commit.id` et `changes.commits[0].parent_ids[0]`
 - Propagation des SHAs dans `WebhookHandlerResult`
@@ -301,6 +321,7 @@ type CommentMode = 'global' | 'inline' | 'hybrid' | 'structured'
 Aucune action requise ! La version 2.0 est 100% rétrocompatible.
 
 Pour activer les nouveaux modes :
+
 1. Ajoutez `COMMENT_MODE=hybrid` dans votre `.env`
 2. Redéployez l'application
 3. Testez avec une nouvelle MR

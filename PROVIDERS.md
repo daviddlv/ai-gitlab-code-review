@@ -23,6 +23,7 @@ This guide explains how to configure each AI provider for the GitLab code review
    - Copy your API key (starts with `sk-ant-`)
 
 2. **Configure Environment**
+
    ```bash
    ANTHROPIC_API_KEY=sk-ant-api03-...
    AI_MODEL=claude-sonnet-4-5  # or claude-3-5-sonnet-20241022 for stable
@@ -36,6 +37,7 @@ This guide explains how to configure each AI provider for the GitLab code review
    - **Reasoning**: `claude-opus-4-1` 🆕 (with thinking capabilities)
 
 ### Model Series Overview
+
 - **Claude 4.5 Series** 🆕: Latest models (2025) - `claude-haiku-4-5`, `claude-sonnet-4-5`
 - **Claude 4 Series** 🆕: Advanced reasoning - `claude-opus-4-1`, `claude-opus-4-0`, `claude-sonnet-4-0`
 - **Claude 3.7 Series** 🆕: Enhanced reasoning - `claude-3-7-sonnet-latest`
@@ -43,12 +45,14 @@ This guide explains how to configure each AI provider for the GitLab code review
 - **Claude 3 Series**: Legacy models
 
 ### Pricing (2025)
+
 - **Claude 4.5/4**: Premium tier ($3-$15/million tokens)
 - **Claude 3.5 Sonnet**: $3/$15 per million tokens
 - **Claude 3.5 Haiku**: $1/$5 per million tokens
 - **Context**: 200K tokens
 
 ### Best For
+
 - **Claude 4.5**: Latest capabilities, best overall
 - **Claude 3.5 Sonnet**: Stable production, proven reliability
 - **Claude Opus**: Complex reasoning and analysis
@@ -68,6 +72,7 @@ This guide explains how to configure each AI provider for the GitLab code review
    - Copy your API key (starts with `sk-`)
 
 2. **Configure Environment**
+
    ```bash
    OPENAI_API_KEY=sk-...
    AI_MODEL=gpt-5  # or gpt-4o for stable production
@@ -81,6 +86,7 @@ This guide explains how to configure each AI provider for the GitLab code review
    - **Code**: `gpt-5-codex` 🆕 (specialized for code)
 
 ### Model Series Overview
+
 - **GPT-5 Series** 🆕: Latest models (2025) - `gpt-5-pro`, `gpt-5`, `gpt-5-mini`, `gpt-5-nano`, `gpt-5-codex`
 - **GPT-4.1 Series** 🆕: Improved efficiency - `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`
 - **GPT-4o Series**: Stable production - `gpt-4o`, `gpt-4o-mini`
@@ -89,6 +95,7 @@ This guide explains how to configure each AI provider for the GitLab code review
 - **Specialized** 🆕: `codex-mini-latest`, `computer-use-preview`
 
 ### Pricing (2025)
+
 - **GPT-5 Series**: $3.50-$5/$14-$20 per million tokens
 - **GPT-4.1 Series**: $0.50-$3/$2-$12 per million tokens
 - **GPT-4o**: $2.50/$10 per million tokens
@@ -96,6 +103,7 @@ This guide explains how to configure each AI provider for the GitLab code review
 - **o4/o3**: $7-$15/$28-$60 per million tokens
 
 ### Best For
+
 - **GPT-5**: Latest capabilities, best overall performance
 - **GPT-4o**: Stable production, proven reliability
 - **GPT-5-mini**: High-volume reviews with latest tech
@@ -116,6 +124,7 @@ This guide explains how to configure each AI provider for the GitLab code review
    - Copy your API key
 
 2. **Configure Environment**
+
    ```bash
    GOOGLE_GENERATIVE_AI_API_KEY=AIza...
    AI_MODEL=gemini-2.5-flash  # or gemini-1.5-pro for stable
@@ -129,12 +138,14 @@ This guide explains how to configure each AI provider for the GitLab code review
    - **Image**: `gemini-2.5-flash-image-preview` 🆕 (image generation)
 
 ### Model Series Overview
+
 - **Gemini 2.5 Series** 🆕: Latest models (2025) - thinking support, improved reasoning
 - **Gemini 2.0 Series** 🆕: Enhanced capabilities
 - **Gemini 1.5 Series**: Stable production models
 - **Gemini 1.0 Series**: Legacy models
 
 ### Pricing (2025)
+
 - **Gemini 2.5 Pro**: Premium tier
 - **Gemini 2.5 Flash**: $0.10-$0.50 per million tokens (estimated)
 - **Gemini 1.5 Pro**: $1.25/$5 per million tokens
@@ -143,6 +154,7 @@ This guide explains how to configure each AI provider for the GitLab code review
 - **Context**: Up to 1M+ tokens
 
 ### Best For
+
 - **Gemini 2.5**: Latest capabilities with thinking support
 - **Gemini 1.5 Pro**: Stable production, excellent reasoning
 - Cost-effective code review (best price/performance)
@@ -155,6 +167,7 @@ This guide explains how to configure each AI provider for the GitLab code review
 ## 🔄 Switching Between Providers
 
 ### Quick Switch
+
 Just change the `AI_MODEL` variable - the provider is automatically detected:
 
 ```bash
@@ -169,36 +182,41 @@ export AI_MODEL=gemini-1.5-pro
 ```
 
 ### Provider Detection
+
 The code automatically detects the provider based on the model prefix:
+
 - `claude-*` → Anthropic
 - `gpt-*` or `o1-*` → OpenAI
 - `gemini-*` → Google
 
 ### Required Environment Variables
 
-| Provider | Required Variables |
-|----------|-------------------|
-| Anthropic | `ANTHROPIC_API_KEY` |
-| OpenAI | `OPENAI_API_KEY` |
-| Google | `GOOGLE_GENERATIVE_AI_API_KEY` |
+| Provider  | Required Variables             |
+| --------- | ------------------------------ |
+| Anthropic | `ANTHROPIC_API_KEY`            |
+| OpenAI    | `OPENAI_API_KEY`               |
+| Google    | `GOOGLE_GENERATIVE_AI_API_KEY` |
 
 ---
 
 ## 💡 Tips & Best Practices
 
 ### Cost Optimization
+
 1. **Start with budget models**: `gpt-4o-mini`, `gemini-1.5-flash`, `claude-3-5-haiku`
 2. **Monitor usage**: Set up billing alerts
 3. **Use caching**: Enable prompt caching where available
 4. **Batch reviews**: Process multiple files at once
 
 ### Quality Optimization
+
 1. **Use flagship models for critical reviews**: `claude-3-5-sonnet`, `gpt-4o`, `gemini-1.5-pro`
 2. **Adjust temperature**: Lower for consistent reviews (default: 0.2)
 3. **Test different providers**: Each has strengths
 4. **Compare results**: Try the same review with different models
 
 ### Security
+
 1. **Never commit API keys**: Use environment variables
 2. **Rotate keys regularly**: Especially for production
 3. **Use secrets management**: Google Secret Manager, cloud key vaults, etc.
@@ -207,22 +225,26 @@ The code automatically detects the provider based on the model prefix:
 ### Troubleshooting
 
 #### "API key not found"
+
 - Check environment variable name matches provider
 - Ensure `.env` file is in the correct location
 - Restart the application after setting variables
 
 #### "Model not found"
+
 - Check model name spelling
 - Verify model is available for your account
 - Ensure the model is supported by the provider
 
 #### "Quota exceeded"
+
 - Check billing/usage limits
 - Wait for quota reset (usually monthly)
 - Upgrade plan if needed
 - Switch to a different provider temporarily
 
 #### "Invalid credentials"
+
 - Regenerate API key
 - Check for extra spaces in `.env` file
 - Verify account is active
@@ -231,22 +253,23 @@ The code automatically detects the provider based on the model prefix:
 
 ## 📊 Provider Comparison
 
-| Feature | Claude | OpenAI | Gemini |
-|---------|--------|--------|--------|
-| **Ease of Setup** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| **Cost** | Medium | Low-High | Low |
-| **Speed** | Fast | Fast | Very Fast |
-| **Context Length** | 200K | 128K | 1M+ |
-| **Code Review Quality** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| **Model Selection** | **17 models** 🆕 | **33 models** 🆕 | **18 models** 🆕 |
-| **Latest Technology** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| **2025 Models** | Claude 4.5/4/3.7 | GPT-5/4.1/o3/o4 | Gemini 2.5/2.0 |
-| **Enterprise Features** | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ |
-| **Availability** | Global | Global | Global |
+| Feature                 | Claude           | OpenAI           | Gemini           |
+| ----------------------- | ---------------- | ---------------- | ---------------- |
+| **Ease of Setup**       | ⭐⭐⭐⭐⭐       | ⭐⭐⭐⭐⭐       | ⭐⭐⭐⭐⭐       |
+| **Cost**                | Medium           | Low-High         | Low              |
+| **Speed**               | Fast             | Fast             | Very Fast        |
+| **Context Length**      | 200K             | 128K             | 1M+              |
+| **Code Review Quality** | ⭐⭐⭐⭐⭐       | ⭐⭐⭐⭐⭐       | ⭐⭐⭐⭐         |
+| **Model Selection**     | **17 models** 🆕 | **33 models** 🆕 | **18 models** 🆕 |
+| **Latest Technology**   | ⭐⭐⭐⭐⭐       | ⭐⭐⭐⭐⭐       | ⭐⭐⭐⭐⭐       |
+| **2025 Models**         | Claude 4.5/4/3.7 | GPT-5/4.1/o3/o4  | Gemini 2.5/2.0   |
+| **Enterprise Features** | ⭐⭐⭐           | ⭐⭐⭐           | ⭐⭐⭐           |
+| **Availability**        | Global           | Global           | Global           |
 
 ### When to Use Each Provider
 
 **Anthropic Claude** 🆕
+
 - ✅ **17 models including latest Claude 4.5, 4.1, 3.7**
 - ✅ **Latest 2025 models with reasoning capabilities**
 - ✅ Detailed code explanations
@@ -257,6 +280,7 @@ The code automatically detects the provider based on the model prefix:
 - ⚠️ Medium to premium pricing
 
 **OpenAI** 🆕
+
 - ✅ **Most model options (33 models)**
 - ✅ **Latest 2025 models (GPT-5, GPT-4.1, o3, o4)**
 - ✅ Fast and reliable
@@ -267,6 +291,7 @@ The code automatically detects the provider based on the model prefix:
 - ⚠️ Pricing varies widely by model tier
 
 **Google Gemini** 🆕
+
 - ✅ **18 models including latest Gemini 2.5, 2.0**
 - ✅ **Latest 2025 models with thinking support**
 - ✅ Best price/performance
