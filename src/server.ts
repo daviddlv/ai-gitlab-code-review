@@ -1,13 +1,14 @@
 import Fastify from "fastify";
 import app from "./app.js";
 
+const LOG_LEVEL = process.env.LOG_LEVEL || "info";
 const PORT = parseInt(process.env.PORT || "8080");
 const HOST = process.env.HOST || "0.0.0.0";
 
 async function start() {
   const fastify = Fastify({
     logger: {
-      level: "info",
+      level: LOG_LEVEL,
       // Change default 'msg' key to 'message' for better readability in GCP
       messageKey: "message",
       // Configuration pour Google Cloud Platform
